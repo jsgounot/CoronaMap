@@ -20,13 +20,13 @@ All the data are fetched from the [CSSEGI repository](https://github.com/CSSEGIS
 
 Update local data :
 
-```python3
+```bash
 python fetch_data.py
 ```
 
 Launch the map :
 
-```python3
+```bash
 bokeh serve --show coronamap.py
 ```
 
