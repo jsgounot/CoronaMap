@@ -3,6 +3,8 @@
 This repository contains a bokeh application to follow the spread of the Covid-19 virus worldwide.
 All the data are fetched from the [CSSEGI repository](https://github.com/CSSEGISandData/COVID-19). 
 
+![screenshot](https://raw.githubusercontent.com/jsgounot/CoronaMap/master/screenshot.png)
+
 ## Features
 
 - Worldmap with daily evolution of the virus propagation worldwide
