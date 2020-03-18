@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 17:54:45
+# @Last Modified time: 2020-03-18 18:04:43
 
 import os, time
 
@@ -56,7 +56,7 @@ class CoronaDataBokeh(CoronaData) :
         if update_state == True :
             self.last_day = self.get_last_day()
             self.emit_signal("update")
-            return "ok, Update sucessfull"
+            return "Update sucessfull"
 
         else :
             next_time = self.time_next_update()
