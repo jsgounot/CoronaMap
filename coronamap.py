@@ -3,9 +3,9 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 15:52:14
+# @Last Modified time: 2020-03-18 17:54:45
 
-import os
+import os, time
 
 from bokeh import events
 from bokeh.io import show, curdoc
@@ -19,7 +19,7 @@ from bokeh.events import DoubleTap
 from bokeh.models.widgets import DataTable, DateFormatter, TableColumn
 
 from multilineplot import MultiLinesPlots
-from fetch_data import CoronaData, find_count_lon_lat
+from fetch_data import CoronaData, find_count_lon_lat, UpdateError
 
 class CoronaDataBokeh(CoronaData) :
 
@@ -45,6 +45,22 @@ class CoronaDataBokeh(CoronaData) :
         self.dp_current_acol = "Confirmed"
 
         self.signals_funs = {}
+
+    def launch_update(self) :
+        
+        try : update_state = self.check_update()
+        except UpdateError as e : 
+            print ("Update error : %s" %(e))
+            return "An unexpected error occured"
+
+        if update_state == True :
+            self.last_day = self.get_last_day()
+            self.emit_signal("update")
+            return "ok, Update sucessfull"
+
+        else :
+            next_time = self.time_next_update()
+            return "Already updated - Time until next update : %s" %(next_time)
 
     def hoover_format(self) :
         for acol, formating in self.acols.items() :
@@ -89,11 +105,17 @@ class CoronaDataBokeh(CoronaData) :
     def get_country(self, lon, lat) :
         return find_count_lon_lat(lon, lat, self.gdfd)
 
-def callback_slider(value, figure, cdata) :
+# ------------------------------------------------------------------------------------------------------------
+
+def carto_update(slider, cdata) :
+    slider.end = cdata.last_day
+
+def carto_slide_day(value, figure, cdata) :
     figure.title.text = 'Coronavirus map : Day ' + str(value)
     cdata.geosource.geojson = cdata.set_day(value)
 
-def callback_button(upper, figure, cdata, slider) :
+def carto_shift_day(upper, figure, cdata, slider) :
+    # button for one upper or lower day
     value = slider.value
 
     try : cdata.increase_day() if upper else cdata.decrease_day()
@@ -105,12 +127,12 @@ def callback_button(upper, figure, cdata, slider) :
     cdata.geosource.geojson = jdata
     slider.value = value
 
-def callback_map_dt(event, cdata) :
+def carto_select_country(event, cdata) :
     lon, lat = event.x, event.y
     country = cdata.get_country(lon, lat)
     cdata.emit_signal("dp_country_change", country=country)
 
-def change_color_map(select_col, select_mapper, patches, cdata) :
+def carto_change_color(select_col, select_mapper, patches, cdata) :
     cdata.carto_current_acol = column = select_col.value
     cdata.carto_current_mapper = mapper = select_mapper.value
 
@@ -137,20 +159,20 @@ def construct_map_layout(cdata) :
     patches = carto.patches('xs','ys', source=cdata.geosource, fill_color={'field' : cdata.carto_current_acol, 'transform' : log_mapper},
               line_color='black', line_width=0.25, fill_alpha=1)
 
-    lambda_callback_map_dt = lambda event : callback_map_dt(event, cdata)
+    lambda_callback_map_dt = lambda event : carto_select_country(event, cdata)
     carto.on_event(DoubleTap, lambda_callback_map_dt)
 
     # Make a slider object: slider
     slider = Slider(title='Days since first infection', start=1, end=cdata.last_day, step=1, value=cdata.last_day)  
-    lambda_callback_slider = lambda attr, old, new : callback_slider(new, carto, cdata)
+    lambda_callback_slider = lambda attr, old, new : carto_slide_day(new, carto, cdata)
     slider.on_change('value', lambda_callback_slider)
     
     # Make buttons
-    lambda_callback_bleft = lambda : callback_button(False, carto, cdata, slider)
+    lambda_callback_bleft = lambda : carto_shift_day(False, carto, cdata, slider)
     bleft = Button(label="Day -1", button_type="success", width=150)
     bleft.on_click(lambda_callback_bleft)
 
-    lambda_callback_bright = lambda : callback_button(True, carto, cdata, slider)
+    lambda_callback_bright = lambda : carto_shift_day(True, carto, cdata, slider)
     bright = Button(label="Day +1", button_type="success", width=150)
     bright.on_click(lambda_callback_bright)
 
@@ -160,31 +182,39 @@ def construct_map_layout(cdata) :
     smap = Select(title="", options=["Log scale color mapping", "Linear scale color mapping"], 
                     value=cdata.carto_current_mapper, width=200)
 
-
-    lambda_change_color_map = lambda attr, old, new : change_color_map(scol, smap, patches, cdata)
+    lambda_change_color_map = lambda attr, old, new : carto_change_color(scol, smap, patches, cdata)
     scol.on_change('value', lambda_change_color_map)
     smap.on_change('value', lambda_change_color_map)
 
     text1 = Div(text="How to : Double tap on map or select using the combobox under right side graph. 10 countries max can be selected at once.")
-    text2 = Div(text="<a href=https://github.com/CSSEGISandData/COVID-19 target=_blank>Data source</a>. Current data shown on this map might be not updated.")
-    text3 = Div(text="<a href=https://github.com/jsgounot/CoronaMap target=_blank>Source code on github</a>.")
-    
-    return column(carto, slider, row(bleft, bright, scol, smap), text1, text2, text3, sizing_mode="stretch_width")
+    text2 = Div(text="""<a href=https://github.com/CSSEGISandData/COVID-19 target=_blank>Data source</a>. Current data shown on this map might be not updated.
+        <a href=https://github.com/jsgounot/CoronaMap target=_blank>Source code on github</a>.""")
 
-def callback_distplots_change(column, cdata, distplots) :
+    fun = lambda : carto_update(slider, cdata)
+    cdata.add_fun_signal("update", fun)
+    
+    return column(carto, slider, row(bleft, bright, scol, smap), text1, text2, sizing_mode="stretch_width")
+
+# ------------------------------------------------------------------------------------------------------------
+
+def distplots_update(distplots, ms, cdata) :
+    distplots_reset(distplots, cdata)
+
+def distplots_change_column(column, cdata, distplots) :
     cdata.dp_current_acol = column
     data = cdata.extract_data_countries(distplots.names, column)
     distplots.add_elements(data, clear=True)
 
-def update_ms(country, ms) :
+def multiselect_update_countries(country, ms) :
     options = ms.options
+
     if country in options :
         options.remove(country)
     else :
         options.append(country)
     ms.options = options
 
-def callback_distplots_country(country, cdata, distplots, ms) :
+def distplots_emit_country(country, cdata, distplots, ms) :
     if not isinstance(country, str) : return
 
     if country in distplots :
@@ -194,18 +224,18 @@ def callback_distplots_country(country, cdata, distplots, ms) :
         xs, ys = cdata.extract_data_country(country, cdata.dp_current_acol)
         distplots.add_element(country, xs, ys)
 
-    update_ms(country, ms)
+    multiselect_update_countries(country, ms)
 
-def callback_distplots_reset(distplots, cdata) :  
+def distplots_reset(distplots, cdata) :  
     column = cdata.dp_current_acol
     # little trick with minimal overload
-    callback_distplots_change(column, cdata, distplots)
+    distplots_change_column(column, cdata, distplots)
 
-def callback_distplots_clear(distplots, ms) :
+def distplots_clear(distplots, ms) :
     distplots.clear()
     ms.options = []
 
-def callback_auto_overlay(distplots, cdata) :
+def distplots_autooveraly(distplots, cdata) :
     if len(distplots.names) < 2 : return
     distplots.overlay_xaxis()
 
@@ -217,7 +247,7 @@ def construct_distplot_layout(cdata) :
     options.remove("PopSize")
     select_column = Select(title="", options=options, value=cdata.dp_current_acol, width=150)
 
-    lambda_callback_dp_change = lambda attr, old, new : callback_distplots_change(new, cdata, distplots)
+    lambda_callback_dp_change = lambda attr, old, new : distplots_change_column(new, cdata, distplots)
     select_column.on_change('value', lambda_callback_dp_change)
 
     # multiselect
@@ -232,27 +262,27 @@ def construct_distplot_layout(cdata) :
     button_right.on_click(cbbr) 
 
     button_auto = Button(label="Auto overlay", button_type="success", width=150)
-    cbba = lambda : callback_auto_overlay(distplots, cdata)
+    cbba = lambda : distplots_autooveraly(distplots, cdata)
     button_auto.on_click(cbba) 
 
     # select country 
     options = sorted(cdata.gdf["UCountry"].unique())
     select_country = Select(title="", options=options, value='China', width=150)    
 
-    lambda_callback_button_country = lambda : callback_distplots_country(select_country.value, cdata, distplots, ms)
+    lambda_callback_button_country = lambda : distplots_emit_country(select_country.value, cdata, distplots, ms)
     button_country = Button(label="Add country", button_type="success", width=150)
     button_country.on_click(lambda_callback_button_country)  
 
     # other
-    lambda_callback_dp_country = lambda country : callback_distplots_country(country, cdata, distplots, ms)
+    lambda_callback_dp_country = lambda country : distplots_emit_country(country, cdata, distplots, ms)
     cdata.add_fun_signal("dp_country_change", lambda_callback_dp_country)
 
     reset_button = Button(label="Reset overlay", button_type="warning", width=150)
-    lambda_callback_rbutton = lambda : callback_distplots_reset(distplots, cdata)
+    lambda_callback_rbutton = lambda : distplots_reset(distplots, cdata)
     reset_button.on_click(lambda_callback_rbutton)
 
     clear_button = Button(label="Clear graph", button_type="warning", width=150)
-    lambda_callback_cbutton = lambda : callback_distplots_clear(distplots, ms)
+    lambda_callback_cbutton = lambda : distplots_clear(distplots, ms)
     clear_button.on_click(lambda_callback_cbutton)
 
     # info text
@@ -266,13 +296,29 @@ def construct_distplot_layout(cdata) :
         <p>CODay : New confirmed cases each day</p>
         """)
 
+    fun = lambda : distplots_update(distplots, ms, cdata)
+    cdata.add_fun_signal("update", fun)
+
     return column(distplots.tabs, text1, row(select_country, button_country, select_column),
         text2, ms, row(button_auto, button_left, button_right), row(reset_button, clear_button),
         text3)
 
+# ------------------------------------------------------------------------------------------------------------
+
+def update(button, cdata) :
+    if button.label == "Updating ..." : return
+    button.label = "Updating ..."
+    result = cdata.launch_update()
+    button.label = result
+
 def launch_server(head=0) :
     cdata = CoronaDataBokeh(head=head)
+    
     map_layout = construct_map_layout(cdata)
+    button = Button(label="Update data", button_type="warning", width=150)
+    button.on_click(lambda : update(button, cdata))
+    map_layout = column(map_layout, column(button), sizing_mode="stretch_width")
+
     spacer = Spacer(width=10)
     dis_layout = construct_distplot_layout(cdata)
     

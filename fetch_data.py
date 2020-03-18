@@ -2,10 +2,12 @@
 # @Author: jsgounot
 # @Date:   2020-03-14 23:50:19
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 15:11:29
+# @Last Modified time: 2020-03-18 17:54:18
 
 import os, glob
 import json
+
+import datetime
 
 from itertools import product
 
@@ -58,7 +60,7 @@ def scratch_corona_data() :
 
     def load_data(link) :
         name = link[131:-4]
-        print (name)
+        print ("Fetch from :", name)
         df = pd.read_csv(link, sep=",")
         df = pd.melt(df, id_vars=df.columns[:4], value_vars=df.columns[4:], var_name="date", value_name=name)
         return df
@@ -99,28 +101,78 @@ def scrap_and_save() :
     cdf["UCountry"] = cdf.apply(fun_country, axis=1)
     
     cdf.to_csv(fname)
+    return cdf
 
 def dayinf(date, fday) :
     return date - fday + pd.Timedelta('1 days')
+
+class UpdateError(Exception) :
+    pass
 
 class CoronaData() :
 
     descriptions = {"date" : "Date", "CODay" : 'New confirmed', "DEDay" : 'New deaths', "REDay" : 'New recovered',
         "CO10k" : "Confirmed per 10k", "DE10k" : "Deaths per 10k", "RE10k" : "Recovered per 10k"}
 
+    # We can update data if at least X hours passed since last update
+    update_time = datetime.timedelta(hours = 2)
+
     def __init__(self, head=0) :
         self.jdata = {}
         self.gdf = load_geo_data()
-
-        dname = os.path.dirname(os.path.realpath(__file__))
-        bname = "Data/corona_data.csv"
-        fname = os.path.join(dname, bname)
-        
-        self.cdf = pd.read_csv(fname, index_col=0)
+       
+        self.cdf = pd.read_csv(self.sourcefile, index_col=0)
         if head : self.cdf = self.cdf.head(head)
         self.update_cdf()
-
         self.empty_dates = self.make_empty_dates()
+
+    @property
+    def sourcefile(self) :
+        dname = os.path.dirname(os.path.realpath(__file__))
+        bname = "Data/corona_data.csv"
+        return os.path.join(dname, bname)
+
+    def time_next_update(self) :
+        lastmod = datetime.datetime.fromtimestamp(os.path.getmtime(self.sourcefile))
+        currtim = datetime.datetime.now()
+
+        diff = currtim - lastmod 
+        next_time = CoronaData.update_time - diff
+
+        # we remove second for formating
+        hours, remainder = divmod(next_time.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        return "{:02}H:{:02}M".format(int(hours), int(minutes))
+
+    def check_update(self) :
+        lastmod = datetime.datetime.fromtimestamp(os.path.getmtime(self.sourcefile))
+        currtim = datetime.datetime.now()
+
+        diff = currtim - lastmod 
+        change = diff > CoronaData.update_time
+
+        lastmodh = lastmod.strftime('%Y-%m-%d %H:%M:%S')
+        currtimh = currtim.strftime('%Y-%m-%d %H:%M:%S')
+
+        print ("Trying to update ...")
+        print ("Current time : %s" %(currtimh))
+        print ("Last time since modification : %s" %(lastmodh))
+        print ("Time since last update : %s" %(diff))
+        print ("Time delta for update : %s" %(CoronaData.update_time))
+        print ("Allow update : %s" %(change))
+
+        if not change : return False
+        try : return self.make_update()
+        except Exception as e : raise UpdateError(e)
+
+    def make_update(self) :      
+        # Reload new data
+        self.cdf = scrap_and_save()
+        self.update_cdf()
+        self.empty_dates = self.make_empty_dates()
+        self.jdata = {} # just to be sure 
+        return True
 
     def update_cdf(self) :
         self.cdf = self.cdf.groupby(["UCountry", "date", "DaysInf"])[["Confirmed", "Deaths", "Recovered"]].sum().astype(int).reset_index()
