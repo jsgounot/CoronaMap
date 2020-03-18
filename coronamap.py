@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 02:12:09
+# @Last Modified time: 2020-03-18 02:14:30
 
 import os
 
@@ -131,8 +131,8 @@ def construct_map_layout(cdata) :
     bright.on_click(lambda_callback_bright)
 
     text1 = Div(text="How to : Double tap on map or select using the combobox under right side graph. 10 countries max can be selected at once.")
-    text2 = Div(text="<a href=https://github.com/CSSEGISandData/COVID-19>Data source</a>. Current data shown on this map might be not updated.")
-    text3 = Div(text="<a href=https://github.com/jsgounot/CoronaMap>Source code on github</a>.")
+    text2 = Div(text="<a href=https://github.com/CSSEGISandData/COVID-19 target=_blank>Data source</a>. Current data shown on this map might be not updated.")
+    text3 = Div(text="<a href=https://github.com/jsgounot/CoronaMap target=_blank>Source code on github</a>.")
     
     return column(carto, slider, row(bleft, bright), text1, text2, text3, sizing_mode="stretch_width")
 
