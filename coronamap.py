@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 02:26:29
+# @Last Modified time: 2020-03-18 02:54:40
 
 import os
 
@@ -12,7 +12,7 @@ from bokeh.io import show, curdoc
 from bokeh.plotting import figure
 from bokeh.models import GeoJSONDataSource, Slider, HoverTool, Button, Div, Select, MultiSelect
 from bokeh.models.mappers import LogColorMapper
-from bokeh.palettes import Viridis3
+from bokeh.palettes import YlOrRd9
 from bokeh.layouts import row, column, Spacer
 from bokeh.events import DoubleTap
 
@@ -104,7 +104,7 @@ def callback_map_dt(event, cdata) :
 
 def construct_map_layout(cdata) :
     low, high = cdata.get_max_min("Confirmed")
-    log_mapper = LogColorMapper(palette=Viridis3, low=1, high=high)
+    log_mapper = LogColorMapper(palette=YlOrRd9[::-1], low=1, high=high)
     
     hover = HoverTool(tooltips=[('Country','@UCountry')] + [value for value in cdata.hoover_format()])
 
