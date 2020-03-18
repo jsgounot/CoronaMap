@@ -3,18 +3,20 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 02:54:40
+# @Last Modified time: 2020-03-18 15:52:14
 
 import os
 
 from bokeh import events
 from bokeh.io import show, curdoc
 from bokeh.plotting import figure
-from bokeh.models import GeoJSONDataSource, Slider, HoverTool, Button, Div, Select, MultiSelect
-from bokeh.models.mappers import LogColorMapper
+from bokeh.models import GeoJSONDataSource
+from bokeh.models import Slider, HoverTool, Button, Div, Select, MultiSelect
+from bokeh.models.mappers import LogColorMapper, LinearColorMapper
 from bokeh.palettes import YlOrRd9
 from bokeh.layouts import row, column, Spacer
 from bokeh.events import DoubleTap
+from bokeh.models.widgets import DataTable, DateFormatter, TableColumn
 
 from multilineplot import MultiLinesPlots
 from fetch_data import CoronaData, find_count_lon_lat
@@ -32,16 +34,22 @@ class CoronaDataBokeh(CoronaData) :
         gj = self.current_jdata
         self.geosource = GeoJSONDataSource(geojson=gj)
 
+        self.acols = {
+            "date" : None, "Confirmed" : '0,0', "Deaths" : '0,0', "Recovered" : '0,0', "DRate" : '0%', 
+            "CODay" : '0,0', "DEDay" : '0,0', "REDay" : '0,0', "PopSize" : '0,0', "PrcCont" : '0.000%',
+            "CO10k" : '0.000', "DE10k" : '0.000', "RE10k" : '0.000'
+            }
+
+        self.carto_current_acol = "Confirmed"
+        self.carto_current_mapper = "Log scale color mapping"
         self.dp_current_acol = "Confirmed"
-        self.acols = {"Confirmed" : '0,0', "Deaths" : '0,0', "Recovered" : '0,0', 
-        "DRate" : '0%', "PopSize" : '0,0', "PrcCont" : '0.000%'}
 
         self.signals_funs = {}
 
     def hoover_format(self) :
         for acol, formating in self.acols.items() :
-            if not formating : yield (acol, "@" + acol)
-            yield (acol, '@%s{%s}' %(acol, formating))
+            if not formating : yield (self.description(acol, acol), "@" + acol)
+            else : yield (self.description(acol, acol), '@%s{%s}' %(acol, formating))
 
     def get_last_day(self) :
         return int(self.cdf["DaysInf"].max())
@@ -102,15 +110,31 @@ def callback_map_dt(event, cdata) :
     country = cdata.get_country(lon, lat)
     cdata.emit_signal("dp_country_change", country=country)
 
+def change_color_map(select_col, select_mapper, patches, cdata) :
+    cdata.carto_current_acol = column = select_col.value
+    cdata.carto_current_mapper = mapper = select_mapper.value
+
+    patches = patches.glyph
+    low, high = cdata.get_max_min(column)
+    
+    if mapper == "Log scale color mapping" :
+        mapper = LogColorMapper(palette=YlOrRd9[::-1], low=1, high=high)
+    elif mapper == "Linear scale color mapping" :
+        mapper = LinearColorMapper(palette=YlOrRd9[::-1], low=1, high=high)
+    else :
+        raise ValueError("Unknown mapper found : %s" %(mapper))
+
+    patches.fill_color = {'field' : column, 'transform' : mapper}
+
 def construct_map_layout(cdata) :
-    low, high = cdata.get_max_min("Confirmed")
+    low, high = cdata.get_max_min(cdata.carto_current_acol)
     log_mapper = LogColorMapper(palette=YlOrRd9[::-1], low=1, high=high)
     
     hover = HoverTool(tooltips=[('Country','@UCountry')] + [value for value in cdata.hoover_format()])
 
     carto = figure(title='Coronavirus map : Day ' + str(cdata.last_day), height=750, tools=[hover])
     
-    carto.patches('xs','ys', source=cdata.geosource, fill_color={'field' : "Confirmed", 'transform' : log_mapper},
+    patches = carto.patches('xs','ys', source=cdata.geosource, fill_color={'field' : cdata.carto_current_acol, 'transform' : log_mapper},
               line_color='black', line_width=0.25, fill_alpha=1)
 
     lambda_callback_map_dt = lambda event : callback_map_dt(event, cdata)
@@ -123,18 +147,29 @@ def construct_map_layout(cdata) :
     
     # Make buttons
     lambda_callback_bleft = lambda : callback_button(False, carto, cdata, slider)
-    bleft = Button(label="Day -1", button_type="success")
+    bleft = Button(label="Day -1", button_type="success", width=150)
     bleft.on_click(lambda_callback_bleft)
 
     lambda_callback_bright = lambda : callback_button(True, carto, cdata, slider)
-    bright = Button(label="Day +1", button_type="success")
+    bright = Button(label="Day +1", button_type="success", width=150)
     bright.on_click(lambda_callback_bright)
+
+    # Select for carto
+    options = [value for value in cdata.acols if value not in ["date"]]
+    scol = Select(title="", options=options, value=cdata.carto_current_acol, width=150)
+    smap = Select(title="", options=["Log scale color mapping", "Linear scale color mapping"], 
+                    value=cdata.carto_current_mapper, width=200)
+
+
+    lambda_change_color_map = lambda attr, old, new : change_color_map(scol, smap, patches, cdata)
+    scol.on_change('value', lambda_change_color_map)
+    smap.on_change('value', lambda_change_color_map)
 
     text1 = Div(text="How to : Double tap on map or select using the combobox under right side graph. 10 countries max can be selected at once.")
     text2 = Div(text="<a href=https://github.com/CSSEGISandData/COVID-19 target=_blank>Data source</a>. Current data shown on this map might be not updated.")
     text3 = Div(text="<a href=https://github.com/jsgounot/CoronaMap target=_blank>Source code on github</a>.")
     
-    return column(carto, slider, row(bleft, bright), text1, text2, text3, sizing_mode="stretch_width")
+    return column(carto, slider, row(bleft, bright, scol, smap), text1, text2, text3, sizing_mode="stretch_width")
 
 def callback_distplots_change(column, cdata, distplots) :
     cdata.dp_current_acol = column
@@ -175,7 +210,7 @@ def callback_auto_overlay(distplots, cdata) :
     distplots.overlay_xaxis()
 
 def construct_distplot_layout(cdata) :
-    distplots = MultiLinesPlots(plot_height=500, plot_width=500,x_axis_type='datetime')
+    distplots = MultiLinesPlots(plot_height=450, plot_width=500,x_axis_type='datetime')
 
     # select column
     options = list(cdata.acols)
@@ -224,8 +259,16 @@ def construct_distplot_layout(cdata) :
     text1 = Div(text="Add another country or change current metrics")
     text2 = Div(text="Manual or automatic overlay data. Manual correction : Select one or more country below and switch left/right")
 
+    text3 = Div(text="""
+        <p>DRate : Death rate = Deaths / (Deaths + Recovered)</p>
+        <p>PrcCont : Percentage of the country population contaminated</p>
+        <p>CO10K : Number of confirmed cases per 10,000 habitants</p>
+        <p>CODay : New confirmed cases each day</p>
+        """)
+
     return column(distplots.tabs, text1, row(select_country, button_country, select_column),
-        text2, ms, row(button_auto, button_left, button_right), row(reset_button, clear_button))
+        text2, ms, row(button_auto, button_left, button_right), row(reset_button, clear_button),
+        text3)
 
 def launch_server(head=0) :
     cdata = CoronaDataBokeh(head=head)

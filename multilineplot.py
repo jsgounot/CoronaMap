@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-16 02:56:21
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 01:57:29
+# @Last Modified time: 2020-03-18 03:09:54
 
 import numpy as np
 from datetime import timedelta
@@ -105,9 +105,7 @@ class MultiLinesPlot() :
         if update : self.update_data()
 
     def overlay_xaxis(self) :
-        # search for overlay
-        # update source
-
+        # search for overlay between series
         extract = lambda name, column : self.data[name][column]                 
         values = lambda name : (extract(name, 'xs'), extract(name, 'ys'))
 

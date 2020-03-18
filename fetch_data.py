@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-14 23:50:19
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-17 23:30:50
+# @Last Modified time: 2020-03-18 15:11:29
 
 import os, glob
 import json
@@ -105,6 +105,9 @@ def dayinf(date, fday) :
 
 class CoronaData() :
 
+    descriptions = {"date" : "Date", "CODay" : 'New confirmed', "DEDay" : 'New deaths', "REDay" : 'New recovered',
+        "CO10k" : "Confirmed per 10k", "DE10k" : "Deaths per 10k", "RE10k" : "Recovered per 10k"}
+
     def __init__(self, head=0) :
         self.jdata = {}
         self.gdf = load_geo_data()
@@ -122,14 +125,45 @@ class CoronaData() :
     def update_cdf(self) :
         self.cdf = self.cdf.groupby(["UCountry", "date", "DaysInf"])[["Confirmed", "Deaths", "Recovered"]].sum().astype(int).reset_index()
 
+        subdf = self.cdf.copy()
+        subdf["DaysInf"] = subdf["DaysInf"] + 1
+
+        self.cdf = self.cdf.merge(subdf, on=["UCountry", "DaysInf"], suffixes=("", "Old"), how="left")
+        self.cdf[["ConfirmedOld", "DeathsOld", "RecoveredOld"]] = self.cdf[["ConfirmedOld", "DeathsOld", "RecoveredOld"]].fillna(0).astype(int)
+
+        self.cdf["CODay"] = self.cdf["Confirmed"] - self.cdf["ConfirmedOld"]
+        self.cdf["DEDay"] = self.cdf["Deaths"] - self.cdf["DeathsOld"]
+        self.cdf["REDay"] = self.cdf["Recovered"] - self.cdf["RecoveredOld"]
+        self.cdf = self.cdf.drop(["dateOld", "ConfirmedOld", "DeathsOld", "RecoveredOld"], axis=1)
+
         psize = self.gdf.set_index("UCountry")["PopSize"].to_dict()
         self.cdf["PopSize"] = self.cdf["UCountry"].apply(lambda country : psize[country])
 
         self.cdf["DRate"] = self.cdf["Deaths"] / self.cdf[["Deaths", "Recovered"]].sum(axis=1)
         self.cdf["DRate"] = self.cdf["DRate"].fillna(0)        
 
-        make_prc_pop = lambda row : row[["Confirmed", "Deaths", "Recovered"]].sum() / row["PopSize"] if not np.isnan(row["PopSize"]) else np.nan
-        self.cdf["PrcCont"] = self.cdf.apply(make_prc_pop, axis=1)
+
+        self.cdf["PrcCont"] = self.cdf[["Confirmed", "Deaths", "Recovered"]].sum(axis=1) / self.cdf["PopSize"]
+        self.cdf["CO10k"] = self.cdf["Confirmed"] * 10000 / self.cdf["PopSize"]
+        self.cdf["DE10k"] = self.cdf["Deaths"] * 10000 / self.cdf["PopSize"]
+        self.cdf["RE10k"] = self.cdf["Recovered"] * 10000 / self.cdf["PopSize"]
+
+        self.cdf["date"] = pd.to_datetime(self.cdf["date"], infer_datetime_format=True) 
+        self.cdf = self.cdf.sort_values("date")
+
+    def full_descriptions(self, astable=False, acols=[]) :
+        values = CoronaData.descriptions
+        acols = sorted(set(acols) | set(values))
+        values = {name : values.get(name, name) for name in acols}
+        
+        if astable : 
+            values = pd.DataFrame([{"Colname" : key, "Description" : value} for key, value in values.items()])
+            values = values.sort_values("Colname")
+        
+        return values
+
+    def description(self, name, default=None) :
+        return CoronaData.descriptions.get(name, default)
 
     def make_empty_dates(self) :
         return pd.DataFrame([{"date" : date, "count" : 0}
@@ -145,7 +179,8 @@ class CoronaData() :
         
         # clean data
         df = df[df["UCountry"] != "Antarctica"]
-        df = df.drop(["date", "DaysInf"], axis=1)
+        df = df.drop("DaysInf", axis=1)
+        df["date"] = df["date"].astype(str)
 
         jdata = json.loads(df.to_json())
         jdata = json.dumps(jdata)
@@ -181,3 +216,4 @@ class CoronaData() :
 
 if __name__ == "__main__" :
     scrap_and_save()
+    #c = CoronaData()
