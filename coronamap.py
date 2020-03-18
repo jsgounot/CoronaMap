@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 02:14:30
+# @Last Modified time: 2020-03-18 02:26:29
 
 import os
 
@@ -235,5 +235,6 @@ def launch_server(head=0) :
     
     layout = row(map_layout, spacer, dis_layout)
     curdoc().add_root(layout)
+    curdoc().title = "CoronaMap"
 
 launch_server(head=0)
