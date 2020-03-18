@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-14 23:50:19
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-17 14:51:36
+# @Last Modified time: 2020-03-17 23:30:50
 
 import os, glob
 import json
@@ -171,6 +171,13 @@ class CoronaData() :
         sdf = sdf.sort_values("date")
 
         return sdf["date"], sdf["count"]
+
+    def extract_data_countries(self, countries, column) :
+        data = {}
+        for country in countries :
+            xs, ys = self.extract_data_country(country, column)
+            data[country] = {"xs" : xs, "ys" : ys}
+        return data
 
 if __name__ == "__main__" :
     scrap_and_save()

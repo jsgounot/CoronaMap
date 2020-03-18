@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-16 03:41:50
+# @Last Modified time: 2020-03-18 02:00:52
 
 import os
 
@@ -13,7 +13,7 @@ from bokeh.plotting import figure
 from bokeh.models import GeoJSONDataSource, Slider, HoverTool, Button, Div, Select, MultiSelect
 from bokeh.models.mappers import LogColorMapper
 from bokeh.palettes import Viridis3
-from bokeh.layouts import row, column
+from bokeh.layouts import row, column, Spacer
 from bokeh.events import DoubleTap
 
 from multilineplot import MultiLinesPlots
@@ -133,17 +133,13 @@ def construct_map_layout(cdata) :
 
     text1 = Div(text="How to : Double tap on map or select using the combobox under right side graph. 10 countries max can be selected at once.")
     text2 = Div(text="<a href=https://github.com/CSSEGISandData/COVID-19>Data source</a>. Current data shown on this map might be not updated.")
+    text3 = Div(text="<a href=https://github.com/jsgounot/CoronaMap>Source code on github</a>.")
     
-    return column(carto, slider, row(bleft, bright), text1, text2)
+    return column(carto, slider, row(bleft, bright), text1, text2, text3)
 
 def callback_distplots_change(column, cdata, distplots) :
     cdata.dp_current_acol = column
-
-    data = {}
-    for country in distplots.names :
-        xs, ys = cdata.extract_data_country(country, column)
-        data[country] = {"xs" : xs, "ys" : ys}
-
+    data = cdata.extract_data_countries(distplots.names, column)
     distplots.add_elements(data, clear=True)
 
 def update_ms(country, ms) :
@@ -166,12 +162,21 @@ def callback_distplots_country(country, cdata, distplots, ms) :
 
     update_ms(country, ms)
 
-def callback_displots_clear(distplots, ms) :
+def callback_distplots_reset(distplots, cdata) :  
+    column = cdata.dp_current_acol
+    # little trick with minimal overload
+    callback_distplots_change(column, cdata, distplots)
+
+def callback_distplots_clear(distplots, ms) :
     distplots.clear()
     ms.options = []
 
+def callback_auto_overlay(distplots, cdata) :
+    if len(distplots.names) < 2 : return
+    distplots.overlay_xaxis()
+
 def construct_distplot_layout(cdata) :
-    distplots = MultiLinesPlots(plot_width=550, plot_height=450, x_axis_type='datetime')
+    distplots = MultiLinesPlots(plot_height=400, plot_width=500,x_axis_type='datetime')
 
     # select column
     options = list(cdata.acols)
@@ -192,31 +197,44 @@ def construct_distplot_layout(cdata) :
     cbbr = lambda : distplots.switch_multiple_data(ms.value, "right")
     button_right.on_click(cbbr) 
 
+    button_auto = Button(label="Auto overlay", button_type="success", width=150)
+    cbba = lambda : callback_auto_overlay(distplots, cdata)
+    button_auto.on_click(cbba) 
+
     # select country 
     options = sorted(cdata.gdf["UCountry"].unique())
-    select_country = Select(title="", options=options, value='China')    
+    select_country = Select(title="", options=options, value='China', width=150)    
 
     lambda_callback_button_country = lambda : callback_distplots_country(select_country.value, cdata, distplots, ms)
-    button_country = Button(label="Select", button_type="success", width=200)
+    button_country = Button(label="Add country", button_type="success", width=150)
     button_country.on_click(lambda_callback_button_country)  
 
     # other
     lambda_callback_dp_country = lambda country : callback_distplots_country(country, cdata, distplots, ms)
     cdata.add_fun_signal("dp_country_change", lambda_callback_dp_country)
 
-    clear_button = Button(label="Clear", button_type="warning")
-    lambda_callback_cbutton = lambda : callback_displots_clear(distplots, ms)
+    reset_button = Button(label="Reset overlay", button_type="warning", width=150)
+    lambda_callback_rbutton = lambda : callback_distplots_reset(distplots, cdata)
+    reset_button.on_click(lambda_callback_rbutton)
+
+    clear_button = Button(label="Clear graph", button_type="warning", width=150)
+    lambda_callback_cbutton = lambda : callback_distplots_clear(distplots, ms)
     clear_button.on_click(lambda_callback_cbutton)
 
-    return column(distplots.tabs, row(select_country, button_country),
-        ms, row(select_column, button_left, button_right), clear_button)
+    # info text
+    text1 = Div(text="Add another country or change current metrics")
+    text2 = Div(text="Manual or automatic overlay data. Manual correction : Select one or more country below and switch left/right")
+
+    return column(distplots.tabs, text1, row(select_country, button_country, select_column),
+        text2, ms, row(button_auto, button_left, button_right), row(reset_button, clear_button))
 
 def launch_server(head=0) :
     cdata = CoronaDataBokeh(head=head)
     map_layout = construct_map_layout(cdata)
+    spacer = Spacer(width=10)
     dis_layout = construct_distplot_layout(cdata)
     
-    layout = row(map_layout, dis_layout)
+    layout = row(map_layout, spacer, dis_layout)
     curdoc().add_root(layout)
 
 launch_server(head=0)
