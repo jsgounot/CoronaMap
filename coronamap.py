@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 02:00:52
+# @Last Modified time: 2020-03-18 02:12:09
 
 import os
 
@@ -108,8 +108,7 @@ def construct_map_layout(cdata) :
     
     hover = HoverTool(tooltips=[('Country','@UCountry')] + [value for value in cdata.hoover_format()])
 
-    carto = figure(title='Coronavirus map : Day ' + str(cdata.last_day), 
-        width=1000, height=600, sizing_mode="scale_both", tools=[hover])
+    carto = figure(title='Coronavirus map : Day ' + str(cdata.last_day), height=750, tools=[hover])
     
     carto.patches('xs','ys', source=cdata.geosource, fill_color={'field' : "Confirmed", 'transform' : log_mapper},
               line_color='black', line_width=0.25, fill_alpha=1)
@@ -135,7 +134,7 @@ def construct_map_layout(cdata) :
     text2 = Div(text="<a href=https://github.com/CSSEGISandData/COVID-19>Data source</a>. Current data shown on this map might be not updated.")
     text3 = Div(text="<a href=https://github.com/jsgounot/CoronaMap>Source code on github</a>.")
     
-    return column(carto, slider, row(bleft, bright), text1, text2, text3)
+    return column(carto, slider, row(bleft, bright), text1, text2, text3, sizing_mode="stretch_width")
 
 def callback_distplots_change(column, cdata, distplots) :
     cdata.dp_current_acol = column
@@ -176,7 +175,7 @@ def callback_auto_overlay(distplots, cdata) :
     distplots.overlay_xaxis()
 
 def construct_distplot_layout(cdata) :
-    distplots = MultiLinesPlots(plot_height=400, plot_width=500,x_axis_type='datetime')
+    distplots = MultiLinesPlots(plot_height=500, plot_width=500,x_axis_type='datetime')
 
     # select column
     options = list(cdata.acols)
