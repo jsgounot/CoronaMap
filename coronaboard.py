@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-18 23:29:41
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-19 19:01:18
+# @Last Modified time: 2020-03-20 00:23:32
 
 from math import pi
 from collections import defaultdict
@@ -52,7 +52,7 @@ class CountryInfoSource() :
 
     _columns_kind = {
         "New daily cases" : ["CODay", "DEDay", "REDay"],
-        "All time" : ["Confirmed", "Deaths", "Recovered"]
+        "All time" : ["Active", "Deaths", "Recovered"]
     }
 
     def __init__(self, cdata, figure, country, kind, * args, ** kwargs) :
@@ -71,7 +71,7 @@ class CountryInfoSource() :
         df = self.cdata.get_data_country(self.country, self.columns)
         
         renamed = {"CODay" : "Daily cases", "DEDay" : "Daily deaths", 
-                   "REDay" : "Daily recovered", "Confirmed" : "Cases"}
+                   "REDay" : "Daily recovered", "Active" : "Cases"}
         
         df.columns = [renamed.get(column, column) for column in df.columns]
         return df
@@ -243,7 +243,7 @@ def scatter_update(slider, cdata) :
     slider.end = cdata.cdf["DaysInf"].max()
 
 def make_scatter(cdata) :
-    col1, col2 = "Confirmed", "Deaths"
+    col1, col2 = "Active", "Deaths"
     lastday = cdata.cdf["DaysInf"].max()
 
     # scatterplot
@@ -258,7 +258,7 @@ def make_scatter(cdata) :
     scatterplot.add_tools(hover)
 
     # Slider
-    slider = Slider(title='Days since first infection', start=1, end=lastday, step=1, value=lastday)  
+    slider = Slider(title='Days since first report', start=1, end=lastday, step=1, value=lastday)  
     slider.on_change('value', lambda attr, old, new : scatter_change_date(scsource, new))
 
     # Selects

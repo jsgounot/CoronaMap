@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-14 23:50:19
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-19 19:09:32
+# @Last Modified time: 2020-03-20 00:27:19
 
 import os, glob
 import datetime
@@ -211,6 +211,7 @@ class CoronaData() :
 
     def update_cdf(self) :
         self.cdf = self.cdf.groupby(["UCountry", "date", "DaysInf"])[["Confirmed", "Deaths", "Recovered"]].sum().astype(int).reset_index()
+        self.cdf["Active"] = self.cdf["Confirmed"] - (self.cdf["Deaths"] + self.cdf["Recovered"]).fillna(0)
 
         subdf = self.cdf.copy()
         subdf["DaysInf"] = subdf["DaysInf"] + 1

@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-19 19:01:59
+# @Last Modified time: 2020-03-20 00:28:19
 
 import os, time
 import json
@@ -40,7 +40,7 @@ class CoronaDataBokeh(CoronaData) :
         self.geosource = GeoJSONDataSource(geojson=gj)
 
         self.acols = {
-            "date" : None, "Confirmed" : '0,0', "Deaths" : '0,0', "Recovered" : '0,0', "DRate" : '0%', 
+            "date" : None, "Confirmed" : '0,0', "Active" : "0,0", "Deaths" : '0,0', "Recovered" : '0,0', "DRate" : '0%', 
             "CODay" : '0,0', "DEDay" : '0,0', "REDay" : '0,0', "PopSize" : '0,0', "PrcCont" : '0.000%',
             "CO10k" : '0.000', "DE10k" : '0.000', "RE10k" : '0.000'
             }
@@ -124,7 +124,7 @@ class CoronaDataBokeh(CoronaData) :
 
         cdf = self.cdf[self.cdf["DaysInf"] == day]
         df = self.gdf[["UCountry", "geometry"]].merge(cdf, on="UCountry", how='left')
-        df[["Confirmed", "Deaths", "Recovered"]] = df[["Confirmed", "Deaths", "Recovered"]].fillna(0).astype(int)
+        df[["Confirmed", "Active", "Deaths", "Recovered"]] = df[["Confirmed", "Active", "Deaths", "Recovered"]].fillna(0).astype(int)
         
         # clean data
         df = df[df["UCountry"] != "Antarctica"]
@@ -216,7 +216,7 @@ def construct_map_layout(cdata) :
     carto.on_event(DoubleTap, lambda_callback_map_dt)
 
     # Make a slider object: slider
-    slider = Slider(title='Days since first infection', start=1, end=cdata.last_day, step=1, value=cdata.last_day)  
+    slider = Slider(title='Days since first report', start=1, end=cdata.last_day, step=1, value=cdata.last_day)  
     lambda_callback_slider = lambda attr, old, new : carto_slide_day(new, carto, cdata)
     slider.on_change('value', lambda_callback_slider)
     
