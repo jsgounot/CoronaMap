@@ -2,8 +2,7 @@
 
 This repository contains a bokeh application to follow the spread of the Covid-19 virus worldwide.
 All the data are fetched from the [CSSEGI repository](https://github.com/CSSEGISandData/COVID-19). 
-
-![screenshot](https://raw.githubusercontent.com/jsgounot/CoronaMap/master/screenshot.png)
+An instance may be alive [here](http://localhost:5006/coronaboard).
 
 ## Features
 
@@ -27,6 +26,13 @@ python fetch_data.py
 Launch the map :
 
 ```bash
-bokeh serve --show coronamap.py
+bokeh serve --show coronamap.py coronaboad.py
 ```
 
+You can also ignore `--show` option if you run it to a server.
+
+## Screenshots
+
+![screenshot](https://raw.githubusercontent.com/jsgounot/CoronaTools/master/Screenshots/coronamap.png)
+
+![screenshot](https://raw.githubusercontent.com/jsgounot/CoronaTools/master/Screenshots/coronaboard.png)
