@@ -3,12 +3,15 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 18:04:43
+# @Last Modified time: 2020-03-19 19:01:59
 
 import os, time
+import json
+
+import pandas as pd
 
 from bokeh import events
-from bokeh.io import show, curdoc
+from bokeh.io import curdoc
 from bokeh.plotting import figure
 from bokeh.models import GeoJSONDataSource
 from bokeh.models import Slider, HoverTool, Button, Div, Select, MultiSelect
@@ -31,7 +34,9 @@ class CoronaDataBokeh(CoronaData) :
         self.last_day = self.get_last_day()
         self.current_day = self.last_day
 
+        self.jdata = {}
         gj = self.current_jdata
+        
         self.geosource = GeoJSONDataSource(geojson=gj)
 
         self.acols = {
@@ -45,6 +50,7 @@ class CoronaDataBokeh(CoronaData) :
         self.dp_current_acol = "Confirmed"
 
         self.signals_funs = {}
+        self.empty_dates = self.make_empty_dates()
 
     def launch_update(self) :
         
@@ -55,12 +61,19 @@ class CoronaDataBokeh(CoronaData) :
 
         if update_state == True :
             self.last_day = self.get_last_day()
+            self.jdata = {} # just to be sure 
+            self.empty_dates = self.make_empty_dates()
             self.emit_signal("update")
             return "Update sucessfull"
 
         else :
             next_time = self.time_next_update()
             return "Already updated - Time until next update : %s" %(next_time)
+
+    def make_empty_dates(self) :
+        return pd.DataFrame([{"date" : date, "count" : 0}
+            for date in self.cdf["date"].unique()])
+
 
     def hoover_format(self) :
         for acol, formating in self.acols.items() :
@@ -104,6 +117,46 @@ class CoronaDataBokeh(CoronaData) :
 
     def get_country(self, lon, lat) :
         return find_count_lon_lat(lon, lat, self.gdfd)
+
+    def df2json(self, day) :
+        jdata = self.jdata.get(day, None)
+        if jdata : return jdata
+
+        cdf = self.cdf[self.cdf["DaysInf"] == day]
+        df = self.gdf[["UCountry", "geometry"]].merge(cdf, on="UCountry", how='left')
+        df[["Confirmed", "Deaths", "Recovered"]] = df[["Confirmed", "Deaths", "Recovered"]].fillna(0).astype(int)
+        
+        # clean data
+        df = df[df["UCountry"] != "Antarctica"]
+        df = df.drop("DaysInf", axis=1)
+        df["date"] = df["date"].astype(str)
+
+        jdata = json.loads(df.to_json())
+        jdata = json.dumps(jdata)
+
+        self.jdata[day] = jdata
+        return jdata
+
+    def extract_data_country(self, country, column) :
+        sdf = self.cdf[self.cdf["UCountry"] == country]
+
+        sdf = sdf.groupby("date")[column].sum().rename("count").reset_index()
+        sdf = pd.concat([sdf, self.empty_dates]).drop_duplicates("date")
+
+        if column in ["PrCont", "DRate"]:
+            sdf["count"] = sdf["count"] * 100
+
+        sdf["date"] = pd.to_datetime(sdf["date"], infer_datetime_format=True) 
+        sdf = sdf.sort_values("date")
+
+        return sdf["date"], sdf["count"]
+
+    def extract_data_countries(self, countries, column) :
+        data = {}
+        for country in countries :
+            xs, ys = self.extract_data_country(country, column)
+            data[country] = {"xs" : xs, "ys" : ys}
+        return data
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -188,7 +241,8 @@ def construct_map_layout(cdata) :
 
     text1 = Div(text="How to : Double tap on map or select using the combobox under right side graph. 10 countries max can be selected at once.")
     text2 = Div(text="""<a href=https://github.com/CSSEGISandData/COVID-19 target=_blank>Data source</a>. Current data shown on this map might be not updated.
-        <a href=https://github.com/jsgounot/CoronaMap target=_blank>Source code on github</a>.""")
+        <a href=https://github.com/jsgounot/CoronaTools target=_blank>Source code on github</a>.
+        See also : <a href=./coronaboard target=_blanck>CoronaBoard - Quick and cross view of the spread of the coronavirus</a>""")
 
     fun = lambda : carto_update(slider, cdata)
     cdata.add_fun_signal("update", fun)
@@ -240,11 +294,10 @@ def distplots_autooveraly(distplots, cdata) :
     distplots.overlay_xaxis()
 
 def construct_distplot_layout(cdata) :
-    distplots = MultiLinesPlots(plot_height=450, plot_width=500,x_axis_type='datetime')
+    distplots = MultiLinesPlots(plot_height=450, plot_width=500, x_axis_type='datetime')
 
     # select column
-    options = list(cdata.acols)
-    options.remove("PopSize")
+    options = [column for column in cdata.acols if column not in ("PopSize", "date")]
     select_column = Select(title="", options=options, value=cdata.dp_current_acol, width=150)
 
     lambda_callback_dp_change = lambda attr, old, new : distplots_change_column(new, cdata, distplots)
@@ -315,8 +368,10 @@ def launch_server(head=0) :
     cdata = CoronaDataBokeh(head=head)
     
     map_layout = construct_map_layout(cdata)
+    
     button = Button(label="Update data", button_type="warning", width=150)
     button.on_click(lambda : update(button, cdata))
+    
     map_layout = column(map_layout, column(button), sizing_mode="stretch_width")
 
     spacer = Spacer(width=10)

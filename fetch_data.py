@@ -2,14 +2,10 @@
 # @Author: jsgounot
 # @Date:   2020-03-14 23:50:19
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 17:54:18
+# @Last Modified time: 2020-03-19 18:01:02
 
 import os, glob
-import json
-
 import datetime
-
-from itertools import product
 
 import numpy as np
 import pandas as pd
@@ -20,6 +16,8 @@ from shapely.geometry import Point
 
 bname = os.path.basename
 dname = os.path.dirname
+
+TESTING = True
 
 def load_geo_data() :
     # https://towardsdatascience.com/a-complete-guide-to-an-interactive-geographical-map-using-python-f4c5197e23e0
@@ -54,9 +52,10 @@ def load_geo_data() :
 
 def scratch_corona_data() :
     fnames = [
-    "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv",
-    "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Deaths.csv",
-    "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Recovered.csv"]
+        "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv",
+        "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Deaths.csv",
+        "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Recovered.csv"
+    ]
 
     def load_data(link) :
         name = link[131:-4]
@@ -115,16 +114,14 @@ class CoronaData() :
         "CO10k" : "Confirmed per 10k", "DE10k" : "Deaths per 10k", "RE10k" : "Recovered per 10k"}
 
     # We can update data if at least X hours passed since last update
-    update_time = datetime.timedelta(hours = 2)
+    update_time = datetime.timedelta(seconds = 2)
 
     def __init__(self, head=0) :
-        self.jdata = {}
         self.gdf = load_geo_data()
-       
         self.cdf = pd.read_csv(self.sourcefile, index_col=0)
+        head = 1000 if TESTING else head
         if head : self.cdf = self.cdf.head(head)
         self.update_cdf()
-        self.empty_dates = self.make_empty_dates()
 
     @property
     def sourcefile(self) :
@@ -145,7 +142,30 @@ class CoronaData() :
 
         return "{:02}H:{:02}M".format(int(hours), int(minutes))
 
+    def full_descriptions(self, astable=False, acols=[]) :
+        values = CoronaData.descriptions
+        acols = sorted(set(acols) | set(values))
+        values = {name : values.get(name, name) for name in acols}
+        
+        if astable : 
+            values = pd.DataFrame([{"Colname" : key, "Description" : value} for key, value in values.items()])
+            values = values.sort_values("Colname")
+        
+        return values
+
+    def description(self, name, default=None) :
+        return CoronaData.descriptions.get(name, default)
+
+    def fake_update(self) :
+        # for testing purpose
+        print ("FAKE UPDATE")
+        self.cdf = pd.read_csv(self.sourcefile, index_col=0)
+        self.update_cdf()
+        print ("FAKE UPDATE DONE")
+        return True
+
     def check_update(self) :
+        if TESTING : return self.fake_update()
         lastmod = datetime.datetime.fromtimestamp(os.path.getmtime(self.sourcefile))
         currtim = datetime.datetime.now()
 
@@ -170,9 +190,23 @@ class CoronaData() :
         # Reload new data
         self.cdf = scrap_and_save()
         self.update_cdf()
-        self.empty_dates = self.make_empty_dates()
-        self.jdata = {} # just to be sure 
         return True
+
+    def launch_update(self) :
+        
+        try : 
+            update_state = self.check_update()
+        except UpdateError as e : 
+            print ("Update error : %s" %(e))
+            return "An unexpected error occured"
+
+        if update_state == True :
+            self.emit_signal("update")
+            return "Update sucessfull"
+
+        else :
+            next_time = self.time_next_update()
+            return "Already updated - Time until next update : %s" %(next_time)
 
     def update_cdf(self) :
         self.cdf = self.cdf.groupby(["UCountry", "date", "DaysInf"])[["Confirmed", "Deaths", "Recovered"]].sum().astype(int).reset_index()
@@ -203,68 +237,9 @@ class CoronaData() :
         self.cdf["date"] = pd.to_datetime(self.cdf["date"], infer_datetime_format=True) 
         self.cdf = self.cdf.sort_values("date")
 
-    def full_descriptions(self, astable=False, acols=[]) :
-        values = CoronaData.descriptions
-        acols = sorted(set(acols) | set(values))
-        values = {name : values.get(name, name) for name in acols}
-        
-        if astable : 
-            values = pd.DataFrame([{"Colname" : key, "Description" : value} for key, value in values.items()])
-            values = values.sort_values("Colname")
-        
-        return values
-
-    def description(self, name, default=None) :
-        return CoronaData.descriptions.get(name, default)
-
-    def make_empty_dates(self) :
-        return pd.DataFrame([{"date" : date, "count" : 0}
-            for date in self.cdf["date"].unique()])
-
-    def df2json(self, day) :
-        jdata = self.jdata.get(day, None)
-        if jdata : return jdata
-
-        cdf = self.cdf[self.cdf["DaysInf"] == day]
-        df = self.gdf[["UCountry", "geometry"]].merge(cdf, on="UCountry", how='left')
-        df[["Confirmed", "Deaths", "Recovered"]] = df[["Confirmed", "Deaths", "Recovered"]].fillna(0).astype(int)
-        
-        # clean data
-        df = df[df["UCountry"] != "Antarctica"]
-        df = df.drop("DaysInf", axis=1)
-        df["date"] = df["date"].astype(str)
-
-        jdata = json.loads(df.to_json())
-        jdata = json.dumps(jdata)
-
-        self.jdata[day] = jdata
-        return jdata
-
-    def df2jsons(self) :
-        days = self.cdf["DaysInf"].unique()
-        return {int(day) : self.df2json(day)
-            for day in days}
-
-    def extract_data_country(self, country, column) :
-        sdf = self.cdf[self.cdf["UCountry"] == country]
-
-        sdf = sdf.groupby("date")[column].sum().rename("count").reset_index()
-        sdf = pd.concat([sdf, self.empty_dates]).drop_duplicates("date")
-
-        if column in ["PrCont", "DRate"]:
-            sdf["count"] = sdf["count"] * 100
-
-        sdf["date"] = pd.to_datetime(sdf["date"], infer_datetime_format=True) 
-        sdf = sdf.sort_values("date")
-
-        return sdf["date"], sdf["count"]
-
-    def extract_data_countries(self, countries, column) :
-        data = {}
-        for country in countries :
-            xs, ys = self.extract_data_country(country, column)
-            data[country] = {"xs" : xs, "ys" : ys}
-        return data
+    @property
+    def countries(self) :
+        return sorted(self.cdf["UCountry"].unique())
 
 if __name__ == "__main__" :
     scrap_and_save()
