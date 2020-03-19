@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-14 23:50:19
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-19 18:01:02
+# @Last Modified time: 2020-03-19 19:09:32
 
 import os, glob
 import datetime
@@ -17,7 +17,8 @@ from shapely.geometry import Point
 bname = os.path.basename
 dname = os.path.dirname
 
-TESTING = True
+TESTING = False
+UPDATE_TIME = datetime.timedelta(hours = 2)
 
 def load_geo_data() :
     # https://towardsdatascience.com/a-complete-guide-to-an-interactive-geographical-map-using-python-f4c5197e23e0
@@ -114,7 +115,7 @@ class CoronaData() :
         "CO10k" : "Confirmed per 10k", "DE10k" : "Deaths per 10k", "RE10k" : "Recovered per 10k"}
 
     # We can update data if at least X hours passed since last update
-    update_time = datetime.timedelta(seconds = 2)
+    update_time = UPDATE_TIME
 
     def __init__(self, head=0) :
         self.gdf = load_geo_data()
