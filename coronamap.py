@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-20 00:28:19
+# @Last Modified time: 2020-03-20 23:26:35
 
 import os, time
 import json
@@ -22,14 +22,20 @@ from bokeh.events import DoubleTap
 from bokeh.models.widgets import DataTable, DateFormatter, TableColumn
 
 from multilineplot import MultiLinesPlots
-from fetch_data import CoronaData, find_count_lon_lat, UpdateError
+from fetch_data import CoronaData, find_country_lon_lat, UpdateError
 
 class CoronaDataBokeh(CoronaData) :
+
+    colRename = {"DRate" : "Death rate", "CODay" : "Daily new confirmed", "DEDay" : "Daily new deaths",
+    "REDay" : "Daily new recovered", "PopSize" : "Population size", "PrcCont" : "Contaminated population (%)",
+    "AC10K" : "Active per 10K", "CO10K" : "Confirmed per 10K", "DE10K" : "Deaths per 10K", "RE10K" : "Recovered per 10K"}
+    
+    colRenameReverse = CRR = {value : key for key, value in colRename.items()} 
 
     def __init__(self, head=0) :
         super().__init__(head)
 
-        self.gdfd = self.gdf.set_index("UCountry")["geometry"].to_dict()
+        self.gdfd = self.gdf.set_index("Country")["Geometry"].to_dict()
 
         self.last_day = self.get_last_day()
         self.current_day = self.last_day
@@ -40,9 +46,9 @@ class CoronaDataBokeh(CoronaData) :
         self.geosource = GeoJSONDataSource(geojson=gj)
 
         self.acols = {
-            "date" : None, "Confirmed" : '0,0', "Active" : "0,0", "Deaths" : '0,0', "Recovered" : '0,0', "DRate" : '0%', 
+            "Date" : None, "Confirmed" : '0,0', "Active" : "0,0", "Deaths" : '0,0', "Recovered" : '0,0', "DRate" : '0%', 
             "CODay" : '0,0', "DEDay" : '0,0', "REDay" : '0,0', "PopSize" : '0,0', "PrcCont" : '0.000%',
-            "CO10k" : '0.000', "DE10k" : '0.000', "RE10k" : '0.000'
+            "AC10K" : "0.000", "CO10K" : '0.000', "DE10K" : '0.000', "RE10K" : '0.000'
             }
 
         self.carto_current_acol = "Confirmed"
@@ -50,7 +56,6 @@ class CoronaDataBokeh(CoronaData) :
         self.dp_current_acol = "Confirmed"
 
         self.signals_funs = {}
-        self.empty_dates = self.make_empty_dates()
 
     def launch_update(self) :
         
@@ -62,7 +67,6 @@ class CoronaDataBokeh(CoronaData) :
         if update_state == True :
             self.last_day = self.get_last_day()
             self.jdata = {} # just to be sure 
-            self.empty_dates = self.make_empty_dates()
             self.emit_signal("update")
             return "Update sucessfull"
 
@@ -70,18 +74,13 @@ class CoronaDataBokeh(CoronaData) :
             next_time = self.time_next_update()
             return "Already updated - Time until next update : %s" %(next_time)
 
-    def make_empty_dates(self) :
-        return pd.DataFrame([{"date" : date, "count" : 0}
-            for date in self.cdf["date"].unique()])
-
-
     def hoover_format(self) :
         for acol, formating in self.acols.items() :
             if not formating : yield (self.description(acol, acol), "@" + acol)
             else : yield (self.description(acol, acol), '@%s{%s}' %(acol, formating))
 
     def get_last_day(self) :
-        return int(self.cdf["DaysInf"].max())
+        return int(self.cdf["DaysRep"].max())
 
     @property
     def current_jdata(self):
@@ -104,9 +103,8 @@ class CoronaDataBokeh(CoronaData) :
         self.current_day -= 1
 
     def get_max_min(self, column) :
-        df = self.cdf[self.cdf[column].notna()]
-        df = df.groupby(["date", "UCountry"])[column].sum().astype(int)
-        return df.min(), df.max()
+        df = self.data_all_countries()
+        return df[column].min(), df[column].max()
 
     def emit_signal(self, signal, ** kwargs) :
         for fun in self.signals_funs.get(signal, []) :
@@ -116,20 +114,19 @@ class CoronaDataBokeh(CoronaData) :
         self.signals_funs.setdefault(signal, []).append(fun)
 
     def get_country(self, lon, lat) :
-        return find_count_lon_lat(lon, lat, self.gdfd)
+        return find_country_lon_lat(self.gdfd, lon, lat)
 
     def df2json(self, day) :
         jdata = self.jdata.get(day, None)
         if jdata : return jdata
 
-        cdf = self.cdf[self.cdf["DaysInf"] == day]
-        df = self.gdf[["UCountry", "geometry"]].merge(cdf, on="UCountry", how='left')
-        df[["Confirmed", "Active", "Deaths", "Recovered"]] = df[["Confirmed", "Active", "Deaths", "Recovered"]].fillna(0).astype(int)
-        
+        df = self.data_from_day(day, report=True, fill=True, addGeom=True)
+        df = self.df2gdf(df)
+
         # clean data
-        df = df[df["UCountry"] != "Antarctica"]
-        df = df.drop("DaysInf", axis=1)
-        df["date"] = df["date"].astype(str)
+        df = df[df["Country"] != "Antarctica"]
+        df = df.drop("DaysRep", axis=1)
+        df["Date"] = df["Date"].astype(str)
 
         jdata = json.loads(df.to_json())
         jdata = json.dumps(jdata)
@@ -138,18 +135,13 @@ class CoronaDataBokeh(CoronaData) :
         return jdata
 
     def extract_data_country(self, country, column) :
-        sdf = self.cdf[self.cdf["UCountry"] == country]
-
-        sdf = sdf.groupby("date")[column].sum().rename("count").reset_index()
-        sdf = pd.concat([sdf, self.empty_dates]).drop_duplicates("date")
+        sdf = self.data_from_country(country, fill=True)
+        sdf = sdf[["Date", column]]
 
         if column in ["PrCont", "DRate"]:
-            sdf["count"] = sdf["count"] * 100
+            sdf[column] = sdf[column] * 100
 
-        sdf["date"] = pd.to_datetime(sdf["date"], infer_datetime_format=True) 
-        sdf = sdf.sort_values("date")
-
-        return sdf["date"], sdf["count"]
+        return sdf["Date"], sdf[column]
 
     def extract_data_countries(self, countries, column) :
         data = {}
@@ -186,7 +178,10 @@ def carto_select_country(event, cdata) :
     cdata.emit_signal("dp_country_change", country=country)
 
 def carto_change_color(select_col, select_mapper, patches, cdata) :
-    cdata.carto_current_acol = column = select_col.value
+    column = select_col.value
+    column = CoronaDataBokeh.CRR.get(column, column)
+
+    cdata.carto_current_acol = column
     cdata.carto_current_mapper = mapper = select_mapper.value
 
     patches = patches.glyph
@@ -205,7 +200,7 @@ def construct_map_layout(cdata) :
     low, high = cdata.get_max_min(cdata.carto_current_acol)
     log_mapper = LogColorMapper(palette=YlOrRd9[::-1], low=1, high=high)
     
-    hover = HoverTool(tooltips=[('Country','@UCountry')] + [value for value in cdata.hoover_format()])
+    hover = HoverTool(tooltips=[('Country','@Country')] + [value for value in cdata.hoover_format()])
 
     carto = figure(title='Coronavirus map : Day ' + str(cdata.last_day), height=750, tools=[hover])
     
@@ -229,9 +224,9 @@ def construct_map_layout(cdata) :
     bright = Button(label="Day +1", button_type="success", width=150)
     bright.on_click(lambda_callback_bright)
 
-    # Select for carto
-    options = [value for value in cdata.acols if value not in ["date"]]
-    scol = Select(title="", options=options, value=cdata.carto_current_acol, width=150)
+    # Select for carto #test
+    options = [CoronaDataBokeh.colRename.get(value, value) for value in cdata.acols if value not in ["Date"]]
+    scol = Select(title="", options=options, value=cdata.carto_current_acol, width=200)
     smap = Select(title="", options=["Log scale color mapping", "Linear scale color mapping"], 
                     value=cdata.carto_current_mapper, width=200)
 
@@ -297,10 +292,10 @@ def construct_distplot_layout(cdata) :
     distplots = MultiLinesPlots(plot_height=450, plot_width=500, x_axis_type='datetime')
 
     # select column
-    options = [column for column in cdata.acols if column not in ("PopSize", "date")]
-    select_column = Select(title="", options=options, value=cdata.dp_current_acol, width=150)
+    options = [CoronaDataBokeh.colRename.get(column, column) for column in cdata.acols if column not in ("PopSize", "Date")]
+    select_column = Select(title="", options=options, value=cdata.dp_current_acol, width=200)
 
-    lambda_callback_dp_change = lambda attr, old, new : distplots_change_column(new, cdata, distplots)
+    lambda_callback_dp_change = lambda attr, old, new : distplots_change_column(CoronaDataBokeh.CRR.get(new, new), cdata, distplots)
     select_column.on_change('value', lambda_callback_dp_change)
 
     # multiselect
@@ -319,11 +314,11 @@ def construct_distplot_layout(cdata) :
     button_auto.on_click(cbba) 
 
     # select country 
-    options = sorted(cdata.gdf["UCountry"].unique())
+    options = sorted(cdata.gdf["Country"].unique())
     select_country = Select(title="", options=options, value='China', width=150)    
 
     lambda_callback_button_country = lambda : distplots_emit_country(select_country.value, cdata, distplots, ms)
-    button_country = Button(label="Add country", button_type="success", width=150)
+    button_country = Button(label="Add country", button_type="success", width=100)
     button_country.on_click(lambda_callback_button_country)  
 
     # other
@@ -342,19 +337,11 @@ def construct_distplot_layout(cdata) :
     text1 = Div(text="Add another country or change current metrics")
     text2 = Div(text="Manual or automatic overlay data. Manual correction : Select one or more country below and switch left/right")
 
-    text3 = Div(text="""
-        <p>DRate : Death rate = Deaths / (Deaths + Recovered)</p>
-        <p>PrcCont : Percentage of the country population contaminated</p>
-        <p>CO10K : Number of confirmed cases per 10,000 habitants</p>
-        <p>CODay : New confirmed cases each day</p>
-        """)
-
     fun = lambda : distplots_update(distplots, ms, cdata)
     cdata.add_fun_signal("update", fun)
 
     return column(distplots.tabs, text1, row(select_country, button_country, select_column),
-        text2, ms, row(button_auto, button_left, button_right), row(reset_button, clear_button),
-        text3)
+        text2, ms, row(button_auto, button_left, button_right), row(reset_button, clear_button))
 
 # ------------------------------------------------------------------------------------------------------------
 
@@ -372,12 +359,12 @@ def launch_server(head=0) :
     button = Button(label="Update data", button_type="warning", width=150)
     button.on_click(lambda : update(button, cdata))
     
-    map_layout = column(map_layout, column(button), sizing_mode="stretch_width")
+    map_layout = column(map_layout, sizing_mode="stretch_width")
 
     spacer = Spacer(width=10)
     dis_layout = construct_distplot_layout(cdata)
     
-    layout = row(map_layout, spacer, dis_layout)
+    layout = row(map_layout, spacer, column(dis_layout, button))
     curdoc().add_root(layout)
     curdoc().title = "CoronaMap"
 
