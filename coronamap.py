@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-20 23:26:35
+# @Last Modified time: 2020-03-20 23:53:10
 
 import os, time
 import json
@@ -25,12 +25,6 @@ from multilineplot import MultiLinesPlots
 from fetch_data import CoronaData, find_country_lon_lat, UpdateError
 
 class CoronaDataBokeh(CoronaData) :
-
-    colRename = {"DRate" : "Death rate", "CODay" : "Daily new confirmed", "DEDay" : "Daily new deaths",
-    "REDay" : "Daily new recovered", "PopSize" : "Population size", "PrcCont" : "Contaminated population (%)",
-    "AC10K" : "Active per 10K", "CO10K" : "Confirmed per 10K", "DE10K" : "Deaths per 10K", "RE10K" : "Recovered per 10K"}
-    
-    colRenameReverse = CRR = {value : key for key, value in colRename.items()} 
 
     def __init__(self, head=0) :
         super().__init__(head)
@@ -74,10 +68,11 @@ class CoronaDataBokeh(CoronaData) :
             next_time = self.time_next_update()
             return "Already updated - Time until next update : %s" %(next_time)
 
-    def hoover_format(self) :
+    def hoover_format(self) :  
         for acol, formating in self.acols.items() :
+            print (acol, self.description(acol), self.description)
             if not formating : yield (self.description(acol, acol), "@" + acol)
-            else : yield (self.description(acol, acol), '@%s{%s}' %(acol, formating))
+            else : yield (self.description(acol), '@%s{%s}' %(acol, formating))
 
     def get_last_day(self) :
         return int(self.cdf["DaysRep"].max())
@@ -179,7 +174,7 @@ def carto_select_country(event, cdata) :
 
 def carto_change_color(select_col, select_mapper, patches, cdata) :
     column = select_col.value
-    column = CoronaDataBokeh.CRR.get(column, column)
+    column = cdata.description(column, reverse=True)
 
     cdata.carto_current_acol = column
     cdata.carto_current_mapper = mapper = select_mapper.value
@@ -225,7 +220,7 @@ def construct_map_layout(cdata) :
     bright.on_click(lambda_callback_bright)
 
     # Select for carto #test
-    options = [CoronaDataBokeh.colRename.get(value, value) for value in cdata.acols if value not in ["Date"]]
+    options = [cdata.description(value) for value in cdata.acols if value not in ["Date"]]
     scol = Select(title="", options=options, value=cdata.carto_current_acol, width=200)
     smap = Select(title="", options=["Log scale color mapping", "Linear scale color mapping"], 
                     value=cdata.carto_current_mapper, width=200)
@@ -292,10 +287,10 @@ def construct_distplot_layout(cdata) :
     distplots = MultiLinesPlots(plot_height=450, plot_width=500, x_axis_type='datetime')
 
     # select column
-    options = [CoronaDataBokeh.colRename.get(column, column) for column in cdata.acols if column not in ("PopSize", "Date")]
+    options = [cdata.description(column) for column in cdata.acols if column not in ("PopSize", "Date")]
     select_column = Select(title="", options=options, value=cdata.dp_current_acol, width=200)
 
-    lambda_callback_dp_change = lambda attr, old, new : distplots_change_column(CoronaDataBokeh.CRR.get(new, new), cdata, distplots)
+    lambda_callback_dp_change = lambda attr, old, new : distplots_change_column(cdata.description(new, reverse=True), cdata, distplots)
     select_column.on_change('value', lambda_callback_dp_change)
 
     # multiselect

@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-18 23:29:41
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-20 23:20:44
+# @Last Modified time: 2020-03-20 23:57:25
 
 import math
 from collections import defaultdict
@@ -251,10 +251,10 @@ def make_barplot(cdata) :
     barplot = DynamicBarPlot(cdata, "Confirmed", 5, plot_height=300, plot_width=550)
 
     # Select
-    columns = CoronaData.data_columns
+    columns = [cdata.description(column) for column in CoronaData.data_columns]
 
-    select_value = Select(title="Shown value", options=columns, value="Confirmed", width=150)
-    select_value.on_change("value", lambda attr, old, new : change_barplot_value(new, barplot))
+    select_value = Select(title="Shown value", options=columns, value="Confirmed", width=220)
+    select_value.on_change("value", lambda attr, old, new : change_barplot_value(cdata.description(new, reverse=True), barplot))
 
     slider_count = Slider(title='Number of elements', start=2, end=10, step=1, value=2)  
     slider_count.on_change('value', lambda attr, old, new : change_barplot_elements(new, barplot))    
@@ -442,13 +442,13 @@ def make_scatter(cdata) :
     slider.on_change('value', lambda attr, old, new : scatter_change_date(scsource, new))
 
     # Selects
-    columns = CoronaData.data_columns
+    columns = [cdata.description(column) for column in CoronaData.data_columns]
 
-    sn1 = Select(title="X axis", options=columns, value=col1, width=150)
-    sn1.on_change('value', lambda attr, old, new : scatter_change_axis(scsource, new, True))
+    sn1 = Select(title="X axis", options=columns, value=col1, width=220)
+    sn1.on_change('value', lambda attr, old, new : scatter_change_axis(scsource, cdata.description(new, reverse=True), True))
     
-    sn2 = Select(title="Y axis", options=columns, value=col2, width=150)
-    sn2.on_change('value', lambda attr, old, new : scatter_change_axis(scsource, new, False))
+    sn2 = Select(title="Y axis", options=columns, value=col2, width=220)
+    sn2.on_change('value', lambda attr, old, new : scatter_change_axis(scsource, cdata.description(new, reverse=True), False))
 
     layout = column(row(sn1, sn2), slider, scatterplot)
 

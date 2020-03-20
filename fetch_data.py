@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-14 23:50:19
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-20 23:26:18
+# @Last Modified time: 2020-03-20 23:45:41
 
 import os, glob
 import datetime
@@ -185,12 +185,14 @@ class UpdatedData() :
 
 class CoronaData(UpdatedData) :
 
-    descriptions = {"Date" : "Date", "CODay" : 'New confirmed', "DEDay" : 'New deaths', "REDay" : 'New recovered',
-        "AC10K" : "Actives per 10k", "CO10K" : "Confirmed per 10k", 
-        "DE10K" : "Deaths per 10k", "RE10K" : "Recovered per 10k"}
-
     data_columns = ['Confirmed', 'Active', 'Deaths', 'Recovered', 'DaysRep', 'CODay', 
                     'REDay', 'DEDay', 'DRate', 'PrcCont', 'AC10K', 'CO10K', 'DE10K', 'RE10K']
+
+    descriptions = {"DRate" : "Death rate", "CODay" : "Daily new confirmed", "DEDay" : "Daily new deaths",
+    "REDay" : "Daily new recovered", "PopSize" : "Population size", "PrcCont" : "Contaminated population (%)",
+    "AC10K" : "Active per 10K", "CO10K" : "Confirmed per 10K", "DE10K" : "Deaths per 10K", "RE10K" : "Recovered per 10K"}
+    
+    descriptions_re = {value : key for key, value in descriptions.items()} 
 
     def __init__(self, head=0) :
         self.gdf = load_geo_data()
@@ -209,19 +211,9 @@ class CoronaData(UpdatedData) :
     def cdf(self, cdf) :
         self.data = cdf
 
-    def full_descriptions(self, astable=False, acols=[]) :
-        values = CoronaData.descriptions
-        acols = sorted(set(acols) | set(values))
-        values = {name : values.get(name, name) for name in acols}
-        
-        if astable : 
-            values = pd.DataFrame([{"Colname" : key, "Description" : value} for key, value in values.items()])
-            values = values.sort_values("Colname")
-        
-        return values
-
-    def description(self, name, default=None) :
-        return CoronaData.descriptions.get(name, default)
+    def description(self, name, reverse=False) :
+        mapper = CoronaData.descriptions_re if reverse else CoronaData.descriptions
+        return mapper.get(name, name)
 
     def add_daily_cases(self) :
         subdf = self.cdf.copy()
