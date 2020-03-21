@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-21 05:35:19
+# @Last Modified time: 2020-03-21 16:13:11
 
 import os, time
 import json
@@ -197,7 +197,7 @@ def construct_map_layout(cdata) :
     
     hover = HoverTool(tooltips=[('Country','@Country')] + [value for value in cdata.hoover_format()])
 
-    carto = figure(title='Coronavirus map : Day ' + str(cdata.last_day), height=500, width=1000, tools=[hover], sizing_mode="stretch_both")
+    carto = figure(title='Coronavirus map : Day ' + str(cdata.last_day), height=500, width=1000, tools=[hover], sizing_mode="scale_both")
     
     patches = carto.patches('xs','ys', source=cdata.geosource, fill_color={'field' : cdata.carto_current_acol, 'transform' : log_mapper},
               line_color='black', line_width=0.25, fill_alpha=1)
