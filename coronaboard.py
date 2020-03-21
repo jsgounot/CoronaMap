@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-18 23:29:41
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-21 05:07:23
+# @Last Modified time: 2020-03-21 05:33:13
 
 import math
 from collections import defaultdict
@@ -500,7 +500,7 @@ def launch_server(head=0) :
     countries_info = make_countries_info(cdata)
     scatter_plot = make_scatter(cdata)
 
-    update_button = Button(label="Update data", button_type="warning", width=150)
+    update_button = Button(label="Update data", button_type="warning", width=250)
     update_button.on_click(lambda : update(update_button, cdata))
 
     source_code_button = Button(label="Source code", button_type="success", width=150)

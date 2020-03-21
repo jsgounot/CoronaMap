@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-14 23:50:19
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-20 23:45:41
+# @Last Modified time: 2020-03-21 05:33:46
 
 import os, glob
 import datetime
@@ -181,7 +181,7 @@ class UpdatedData() :
 
         else :
             next_time = self.time_next_update()
-            return "Already updated - Time until next update : %s" %(next_time)
+            return "Already updated - Next update : %s" %(next_time)
 
 class CoronaData(UpdatedData) :
 
