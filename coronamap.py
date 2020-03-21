@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-21 05:22:17
+# @Last Modified time: 2020-03-21 05:25:51
 
 import os, time
 import json
@@ -361,7 +361,7 @@ def launch_server(head=0) :
     source_code_button.js_on_click(CustomJS(code='window.open("https://github.com/jsgounot/CoronaTools");'))
 
     coronaboard_button = Button(label="Corona board", button_type="success", width=150)
-    coronaboard_button.js_on_click(CustomJS(code='window.open("coronamap");'))
+    coronaboard_button.js_on_click(CustomJS(code='window.open("coronaboard");'))
 
     data_source = Button(label="Data source", button_type="success", width=150)
     data_source.js_on_click(CustomJS(code='window.open("https://github.com/CSSEGISandData/COVID-19");'))
