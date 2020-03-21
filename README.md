@@ -2,7 +2,7 @@
 
 This repository contains bokeh applications to follow the spread of the Covid-19 virus worldwide.
 All the data are fetched from the [CSSEGI repository](https://github.com/CSSEGISandData/COVID-19). 
-An instance may be alive [here](http://localhost:5006/coronaboard).
+An instance may be alive [here](http://51.83.76.96:5006/coronamap).
 
 ## Features
 
