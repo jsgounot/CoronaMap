@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-20 23:53:10
+# @Last Modified time: 2020-03-21 01:39:42
 
 import os, time
 import json
@@ -70,7 +70,6 @@ class CoronaDataBokeh(CoronaData) :
 
     def hoover_format(self) :  
         for acol, formating in self.acols.items() :
-            print (acol, self.description(acol), self.description)
             if not formating : yield (self.description(acol, acol), "@" + acol)
             else : yield (self.description(acol), '@%s{%s}' %(acol, formating))
 
