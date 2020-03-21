@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-18 23:29:41
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-21 05:33:13
+# @Last Modified time: 2020-03-21 16:36:26
 
 import math
 from collections import defaultdict
@@ -181,7 +181,10 @@ def make_countries_info(cdata) :
     select_time = Select(title="Cases type", options=CountryInfoSource.columns_names, value=ckind)
     select_time.on_change('value', lambda attr, old, new : cdata.emit_signal("cinfo_change_ckind", new))
 
+    cText = Div(text="<b>Daily evolution since first report</b>", sizing_mode="stretch_width")
+
     layout = column(
+        cText,
         row(select_location, select_time, sizing_mode="stretch_width"),
         lineplot, 
         stackplot, 
@@ -358,6 +361,26 @@ def make_piecharts(cdata) :
 
 # ------------------------------------------------------------------------------------------------------------------------
 
+def update_ctext(cdata, ctext) :
+    lastday = str(cdata.lastday())[:10]
+    ctext.text = "<b>Metrics from the last report (%s)</b>" %(lastday)
+
+def make_daily_reports(cdata) :
+
+    barplot = make_barplot(cdata)
+    piecharts = make_piecharts(cdata)
+
+    lastday = str(cdata.lastday())[:10]
+    cText = Div(text="<b>Metrics from the last report (%s)</b>" %(lastday), sizing_mode="stretch_width")
+    cdata.add_fun_signal("update", lambda : update_ctext(cdata, cText))
+
+    layout = column(cText, barplot, piecharts, 
+        sizing_mode="stretch_both")
+
+    return layout
+
+# ------------------------------------------------------------------------------------------------------------------------
+
 class ScatterSource() :
 
     def __init__(self, cdata, lkind, date, c1, c2) :
@@ -461,7 +484,10 @@ def make_scatter(cdata) :
     sn2 = Select(title="Y axis", options=columns, value=col2, width=200)
     sn2.on_change('value', lambda attr, old, new : scatter_change_axis(scsource, cdata.description(new, reverse=True), False))
 
+    cText = Div(text="<b>Comparison between day and day before</b>", sizing_mode="stretch_width")
+
     layout = column(
+        cText,
         row(sn1, sn2, sizing_mode="stretch_width"), 
         slider, scatterplot, 
         sizing_mode="stretch_both")
@@ -482,10 +508,6 @@ def update(button, cdata) :
     result = cdata.launch_update()
     button.label = result
 
-def update_ctext(cdata, ctext) :
-    lastday = str(cdata.lastday())[:10]
-    ctext.text = "<b>Last report : %s</b>" %(lastday)
-
 def launch_server(head=0) :
     cdata = ControlData(head=head, lkind="Continent")
 
@@ -495,8 +517,7 @@ def launch_server(head=0) :
     rbg = RadioButtonGroup(labels=labels, active=idx, width=150)
     rbg.on_change("active", lambda attr, old, new : cdata.change_lkind(new))
 
-    barplot = make_barplot(cdata)
-    piecharts = make_piecharts(cdata)
+    daily_reports = make_daily_reports(cdata)
     countries_info = make_countries_info(cdata)
     scatter_plot = make_scatter(cdata)
 
@@ -512,22 +533,17 @@ def launch_server(head=0) :
     data_source = Button(label="Data source", button_type="success", width=150)
     data_source.js_on_click(CustomJS(code='window.open("https://github.com/CSSEGISandData/COVID-19");'))
 
-    lastday = str(cdata.lastday())[:10]
-    cText = Div(text="<b>Last report : %s</b>" %(lastday), sizing_mode="stretch_width")
-    cdata.add_fun_signal("update", lambda : update_ctext(cdata, cText))
-
-    left_panel = column(cText, barplot, piecharts, 
-        sizing_mode="stretch_both")
+    
 
     layout = column(
         row(
             row(rbg, update_button, coronamap_button, source_code_button, data_source), 
             sizing_mode="stretch_width"), 
         row(
-            left_panel, 
+            daily_reports, 
             Spacer(width=10, sizing_mode="stretch_height"), 
             countries_info, 
-            Spacer(width=10, sizing_mode="stretch_height"), 
+            #Spacer(width=10, sizing_mode="stretch_height"), 
             scatter_plot, 
             sizing_mode="stretch_both"), 
         sizing_mode="stretch_both")

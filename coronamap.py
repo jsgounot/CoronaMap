@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-21 16:13:11
+# @Last Modified time: 2020-03-21 16:41:06
 
 import os, time
 import json
@@ -232,8 +232,13 @@ def construct_map_layout(cdata) :
     fun = lambda : carto_update(slider, cdata)
     cdata.add_fun_signal("update", fun)
     
-    return column(carto, slider, 
+    cText = Div(text="""<b>How to : Double click on a country on map to display statistics in the right panel. Change map metrics and color scale
+        using control box above</b>""", sizing_mode="stretch_width")
+
+    return column(
+        carto, slider, 
         row(bleft, bright, scol, smap, sizing_mode="stretch_width"), 
+        cText,
         sizing_mode="stretch_both")
 
 # ------------------------------------------------------------------------------------------------------------
