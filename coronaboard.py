@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-18 23:29:41
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-20 23:57:25
+# @Last Modified time: 2020-03-21 05:07:23
 
 import math
 from collections import defaultdict
@@ -19,6 +19,7 @@ from bokeh.palettes import Category10_10
 from bokeh.layouts import row, column, Spacer
 from bokeh.transform import cumsum
 from bokeh.models.ranges import DataRange1d
+from bokeh.models.callbacks import CustomJS
 
 from fetch_data import CoronaData, UpdateError
 
@@ -157,7 +158,7 @@ def make_countries_info(cdata) :
 
     # linesplot
     hover = HoverTool(tooltips=[('Date', '$data_x{%F}'), ('Value', '$data_y{0,0}')], formatters={'$data_x': 'datetime'})
-    lineplot = figure(plot_height=600, plot_width=600, x_axis_type='datetime', tools=[hover])
+    lineplot = figure(x_axis_type='datetime', tools=[hover], sizing_mode="stretch_both", min_width=10, min_height=10)
     cis_lp = CountryInfoSourceLP(cdata, lineplot, location, ckind, dict(xs=[], ys=[], colors=[], names=[]))
     lineplot.multi_line('xs' ,'ys', source=cis_lp.source, line_color='colors', legend_field='names')
     
@@ -165,7 +166,7 @@ def make_countries_info(cdata) :
     cdata.add_fun_signal("cinfo_change_ckind", lambda ckind : cis_lp.change_ckind(ckind))
 
     # stackplot // hover not implemented for varea ?
-    stackplot = figure(plot_height=150, plot_width=600, x_axis_type='datetime')
+    stackplot = figure(x_axis_type='datetime', sizing_mode="stretch_width", plot_height=150, plot_width=150)
     cis_sp = CountryInfoSourceStack(cdata, stackplot, location, ckind, dict(dates=[], x=[], y=[], z=[], rvalues=[], colors=[]))
     stackplot.varea_stack(stackers=["x", "y", "z"], x='dates', fill_color=COLORS[:3], source=cis_sp.source)
 
@@ -173,14 +174,18 @@ def make_countries_info(cdata) :
     cdata.add_fun_signal("cinfo_change_ckind", lambda ckind : cis_sp.change_ckind(ckind))
 
     # Select country
-    select_location = Select(title="Location", options=["Error"], value="Error", width=150)
+    select_location = Select(title="Location", options=["Error"], value="Error")
     select_location.on_change('value', lambda attr, old, new : cdata.emit_signal("cinfo_change_location", new))
 
     # Select kind
-    select_time = Select(title="Cases type", options=CountryInfoSource.columns_names, value=ckind, width=150)
+    select_time = Select(title="Cases type", options=CountryInfoSource.columns_names, value=ckind)
     select_time.on_change('value', lambda attr, old, new : cdata.emit_signal("cinfo_change_ckind", new))
 
-    layout = column(row(select_location, select_time), lineplot, stackplot)
+    layout = column(
+        row(select_location, select_time, sizing_mode="stretch_width"),
+        lineplot, 
+        stackplot, 
+        sizing_mode="stretch_both")
 
     cdata.add_fun_signal("CountryMode", lambda lkind : change_select_country(cdata, select_location, lkind))
     cdata.add_fun_signal("update", lambda : country_info_reset(cis_lp, cis_sp))
@@ -248,7 +253,7 @@ def change_barplot_lkind(cdata, bps, slider, lkind) :
     bps.make_data()
 
 def make_barplot(cdata) :
-    barplot = DynamicBarPlot(cdata, "Confirmed", 5, plot_height=300, plot_width=550)
+    barplot = DynamicBarPlot(cdata, "Confirmed", 5, plot_height=300, plot_width=550, sizing_mode="stretch_both")
 
     # Select
     columns = [cdata.description(column) for column in CoronaData.data_columns]
@@ -256,13 +261,16 @@ def make_barplot(cdata) :
     select_value = Select(title="Shown value", options=columns, value="Confirmed", width=220)
     select_value.on_change("value", lambda attr, old, new : change_barplot_value(cdata.description(new, reverse=True), barplot))
 
-    slider_count = Slider(title='Number of elements', start=2, end=10, step=1, value=2)  
+    slider_count = Slider(title='Number of elements', start=2, end=10, step=1, value=2, sizing_mode="stretch_width")  
     slider_count.on_change('value', lambda attr, old, new : change_barplot_elements(new, barplot))    
 
     cdata.add_fun_signal("CountryMode", lambda lkind : change_barplot_lkind(cdata, barplot, slider_count, lkind))
     cdata.add_fun_signal("update", lambda : barplot.make_data())
 
-    return column(row(select_value, slider_count), barplot.figure)
+    return column(
+        row(select_value, slider_count, sizing_mode="stretch_width"), 
+        barplot.figure, 
+        sizing_mode="stretch_both")
 
 # ------------------------------------------------------------------------------------------------------------------------
 
@@ -333,17 +341,20 @@ def piechart_update(select, pie_all, pie_daily) :
     pie_daily.make_source(location)
 
 def make_piecharts(cdata) :
-    pie_all = PieChart(cdata, ["Active", "Deaths", "Recovered"], plot_height=325, plot_width=275, x_axis_type='datetime', title="Overall")
+    pie_all = PieChart(cdata, ["Active", "Deaths", "Recovered"], plot_height=325, plot_width=275, x_axis_type='datetime', title="Overall", sizing_mode="scale_both")
     
-    pie_daily = PieChart(cdata, ["CODay", "DEDay", "REDay"], plot_height=325, plot_width=275, x_axis_type='datetime', title="Last report")
+    pie_daily = PieChart(cdata, ["CODay", "DEDay", "REDay"], plot_height=325, plot_width=275, x_axis_type='datetime', title="Last report", sizing_mode="scale_both")
 
-    select_location = Select(title="Location", options=["Error"], value="Error", width=150)
+    select_location = Select(title="Location", options=["Error"], value="Error", width=150, sizing_mode="stretch_width")
     select_location.on_change("value", lambda attr, old, new : piechart_change_location(cdata, new, pie_all, pie_daily))
 
     cdata.add_fun_signal("CountryMode", lambda lkind : change_select_country(cdata, select_location, lkind))
     cdata.add_fun_signal("update", lambda : piechart_update(select_location, pie_all, pie_daily))
 
-    return column(select_location, row(pie_daily.figure, pie_all.figure))
+    return column(
+        select_location, 
+        row(pie_daily.figure, pie_all.figure, sizing_mode="stretch_both"), 
+        sizing_mode="stretch_both")
 
 # ------------------------------------------------------------------------------------------------------------------------
 
@@ -428,7 +439,7 @@ def make_scatter(cdata) :
 
     # scatterplot
     scsource = ScatterSource(cdata, cdata.lkind, lastday, col1, col2)    
-    scatterplot = figure(plot_height=700, plot_width=700)
+    scatterplot = figure(plot_height=450, plot_width=450, sizing_mode="stretch_both")
     scatterplot.multi_line('xs' ,'ys', line_color="colors", source=scsource.linsource)
     sc1 = scatterplot.scatter('xs' ,'ys', marker="circle", size=15, line_color="navy", fill_color="#3A5785", source=scsource.cursource)
     sc2 = scatterplot.scatter('xs' ,'ys', marker="circle", size=15, line_color="navy", fill_color="#85423a", source=scsource.oldsource)
@@ -438,19 +449,22 @@ def make_scatter(cdata) :
     scatterplot.add_tools(hover)
 
     # Slider
-    slider = Slider(title='Days since first report', start=1, end=lastday, step=1, value=lastday)  
+    slider = Slider(title='Days since first report', start=1, end=lastday, step=1, value=lastday, sizing_mode="stretch_width")  
     slider.on_change('value', lambda attr, old, new : scatter_change_date(scsource, new))
 
     # Selects
     columns = [cdata.description(column) for column in CoronaData.data_columns]
 
-    sn1 = Select(title="X axis", options=columns, value=col1, width=220)
+    sn1 = Select(title="X axis", options=columns, value=col1, width=200)
     sn1.on_change('value', lambda attr, old, new : scatter_change_axis(scsource, cdata.description(new, reverse=True), True))
     
-    sn2 = Select(title="Y axis", options=columns, value=col2, width=220)
+    sn2 = Select(title="Y axis", options=columns, value=col2, width=200)
     sn2.on_change('value', lambda attr, old, new : scatter_change_axis(scsource, cdata.description(new, reverse=True), False))
 
-    layout = column(row(sn1, sn2), slider, scatterplot)
+    layout = column(
+        row(sn1, sn2, sizing_mode="stretch_width"), 
+        slider, scatterplot, 
+        sizing_mode="stretch_both")
 
     scsource.make_source()
 
@@ -486,21 +500,37 @@ def launch_server(head=0) :
     countries_info = make_countries_info(cdata)
     scatter_plot = make_scatter(cdata)
 
-    button = Button(label="Update data", button_type="warning", width=150)
-    button.on_click(lambda : update(button, cdata))
+    update_button = Button(label="Update data", button_type="warning", width=150)
+    update_button.on_click(lambda : update(update_button, cdata))
+
+    source_code_button = Button(label="Source code", button_type="success", width=150)
+    source_code_button.js_on_click(CustomJS(code='window.open("https://github.com/jsgounot/CoronaTools");'))
+
+    coronamap_button = Button(label="Corona map", button_type="success", width=150)
+    coronamap_button.js_on_click(CustomJS(code='window.open("coronamap");'))
+
+    data_source = Button(label="Data source", button_type="success", width=150)
+    data_source.js_on_click(CustomJS(code='window.open("https://github.com/CSSEGISandData/COVID-19");'))
 
     lastday = str(cdata.lastday())[:10]
-    cText = Div(text="<b>Last report : %s</b>" %(lastday))
+    cText = Div(text="<b>Last report : %s</b>" %(lastday), sizing_mode="stretch_width")
     cdata.add_fun_signal("update", lambda : update_ctext(cdata, cText))
 
-    infoText = Div(text="""
-        <p><a href=https://github.com/CSSEGISandData/COVID-19 target=_blank>Data source</a>. Current data shown on this map might be not updated.
-        <a href=https://github.com/jsgounot/CoronaTools target=_blank>Source code on github</a>.</p>
-        <p>See also : <a href=./coronamap target=_blanck>CoronaMap - WorldWide distribution of the virus</a></p>
-        """)
+    left_panel = column(cText, barplot, piecharts, 
+        sizing_mode="stretch_both")
 
-    layout = column(row(rbg, button), row(column(cText, barplot, piecharts), Spacer(width=25), countries_info, Spacer(width=25), 
-        scatter_plot), infoText)
+    layout = column(
+        row(
+            row(rbg, update_button, coronamap_button, source_code_button, data_source), 
+            sizing_mode="stretch_width"), 
+        row(
+            left_panel, 
+            Spacer(width=10, sizing_mode="stretch_height"), 
+            countries_info, 
+            Spacer(width=10, sizing_mode="stretch_height"), 
+            scatter_plot, 
+            sizing_mode="stretch_both"), 
+        sizing_mode="stretch_both")
 
     # Emit first signal to run basic plot
     cdata.emit_signal("CountryMode", cdata.lkind)

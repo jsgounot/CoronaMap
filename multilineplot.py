@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-16 02:56:21
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-18 03:09:54
+# @Last Modified time: 2020-03-21 03:30:06
 
 import numpy as np
 from datetime import timedelta
@@ -161,7 +161,7 @@ class MultiLinesPlots(MultiLinesPlot) :
         self.panels = [Panel(child=dp.figure, title=atype)
             for atype, dp in self.distplots.items()]
 
-        self.tabs = Tabs(tabs=self.panels)
+        self.tabs = Tabs(tabs=self.panels, sizing_mode="stretch_both")
         self.setup(kwargs)
 
     def __iter__(self) :
