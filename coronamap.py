@@ -3,7 +3,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-10 15:27:40
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-21 05:25:51
+# @Last Modified time: 2020-03-21 05:35:19
 
 import os, time
 import json
@@ -67,7 +67,7 @@ class CoronaDataBokeh(CoronaData) :
 
         else :
             next_time = self.time_next_update()
-            return "Already updated - Time until next update : %s" %(next_time)
+            return "Already updated - Next update : %s" %(next_time)
 
     def hoover_format(self) :  
         for acol, formating in self.acols.items() :
