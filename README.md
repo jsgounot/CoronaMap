@@ -1,6 +1,6 @@
-# CoronaMap / Covid-19 map
+# CoronoTools / Map and tool to study Covid-19 spread
 
-This repository contains a bokeh application to follow the spread of the Covid-19 virus worldwide.
+This repository contains bokeh applications to follow the spread of the Covid-19 virus worldwide.
 All the data are fetched from the [CSSEGI repository](https://github.com/CSSEGISandData/COVID-19). 
 An instance may be alive [here](http://localhost:5006/coronaboard).
 
@@ -8,6 +8,8 @@ An instance may be alive [here](http://localhost:5006/coronaboard).
 
 - Worldmap with daily evolution of the virus propagation worldwide
 - Comparison of the data between countries with days shift
+- Global view of last reports and evolution for each country / continent / world
+- Evolution day by day for the virus
 
 ## Dependancies
 
