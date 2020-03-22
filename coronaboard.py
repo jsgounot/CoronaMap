@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-18 23:29:41
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-22 01:11:02
+# @Last Modified time: 2020-03-22 11:48:18
 
 import math
 from collections import defaultdict
@@ -529,7 +529,7 @@ def launch_server(head=0) :
     source_code_button = Button(label="Source code", button_type="success", width=150)
     source_code_button.js_on_click(CustomJS(code='window.open("https://github.com/jsgounot/CoronaTools");'))
 
-    coronamap_button = Button(label="Corona map", button_type="success", width=150)
+    coronamap_button = Button(label="Corona map", button_type="primary", width=150)
     coronamap_button.js_on_click(CustomJS(code='window.open("coronamap");'))
 
     data_source = Button(label="Data source", button_type="success", width=150)
