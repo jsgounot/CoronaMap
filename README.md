@@ -33,14 +33,11 @@ bokeh serve --show coronamap.py coronaboad.py
 
 You can also ignore `--show` option if you run it to a server.
 
-## Screenshots
-
-![screenshot](https://raw.githubusercontent.com/jsgounot/CoronaTools/master/Screenshots/coronamap.png)
-
-![screenshot](https://raw.githubusercontent.com/jsgounot/CoronaTools/master/Screenshots/coronaboard.png)
-
 ## Other websites
 
 - [CSSEGI website](https://www.arcgis.com/apps/opsdashboard/index.html#/bda7594740fd40299423467b48e9ecf6)
 - [Coronastats.co](https://coronastats.co/)
 - [Covid-19 tracker](https://covid19.nguy.dev/)
+- [Coronaboard](https://coronaboard.kr/en/)
+- [Worldometers](https://www.worldometers.info/coronavirus/)
+- [Arik](https://coronavirus.arik.io/#/)
