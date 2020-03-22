@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-18 23:29:41
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-03-21 16:36:26
+# @Last Modified time: 2020-03-22 01:11:02
 
 import math
 from collections import defaultdict
@@ -285,10 +285,10 @@ class PieChart() :
         self.cdata = cdata
         self.columns = columns
 
-        hover = HoverTool(tooltips=[('Kind', '@kind'), ('Value', '@value{0,0}')])
+        hover = HoverTool(tooltips=[('Kind', '@kind'), ('Value', '@value{0,0}'), ('Percentage', '@prc{0.00%}')])
         kwargs.setdefault("tools", []).append(hover)
 
-        self.source = ColumnDataSource(dict(angle=[], color=[], kind=[], value=[]))
+        self.source = ColumnDataSource(dict(angle=[], color=[], kind=[], value=[], prc=[]))
         self.figure = figure(* args, ** kwargs)
         self.figure.wedge(x=1, y=1, radius=0.8, start_angle=cumsum('angle', include_zero=True), end_angle=cumsum('angle'),
                           line_color="white", fill_color='color', source=self.source)
@@ -326,7 +326,9 @@ class PieChart() :
         df.columns = [PieChart.renamed.get(column, column) for column in df.columns]
 
         df = df.sum().T.reset_index(name='value').rename(columns={'index':'kind'})
-        df['angle'] = df['value'] / df['value'].sum() * 2 * math.pi
+        df['prc'] = df['value'] / df['value'].sum()
+        df['angle'] = df['prc'] * 2 * math.pi
+
         
         # Be sure to sort index since legend is based on sorted columns
         df = df.sort_index()
@@ -532,8 +534,6 @@ def launch_server(head=0) :
 
     data_source = Button(label="Data source", button_type="success", width=150)
     data_source.js_on_click(CustomJS(code='window.open("https://github.com/CSSEGISandData/COVID-19");'))
-
-    
 
     layout = column(
         row(
