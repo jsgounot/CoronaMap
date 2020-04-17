@@ -1,37 +1,32 @@
 # CoronoTools / Map and tool to study Covid-19 spread
 
 This repository contains bokeh applications to follow the spread of the Covid-19 virus worldwide.
-All the data are fetched from the [CSSEGI repository](https://github.com/CSSEGISandData/COVID-19). 
-An instance may be alive [here](http://51.83.76.96:5006/coronamap).
+All the data are fetched from the [CSSEGI repository](https://github.com/CSSEGISandData/COVID-19) using a [dedicated wrapper](https://github.com/jsgounot/PyCoronaData).
+An instance may be alive [here](http://jsandbox.info/bokeh/coronatools).
 
 ## Features
 
 - Worldmap with daily evolution of the virus propagation worldwide
-- Comparison of the data between countries with days shift
-- Global view of last reports and evolution for each country / continent / world
-- Evolution day by day for the virus
+- Comparison between countries (barplot and metric over time)
+- A global view of one country / continement evolution over time
 
 ## Dependancies
 
 - Python 3.7
-- Bokeh
-- GeoPandas
+- [Bokeh](https://github.com/bokeh/bokeh)
+- [PyCoronaData](https://github.com/jsgounot/PyCoronaData)
 
 ## How to
 
-Update local data :
+All the different applications can be launche using server files, i.e :
 
 ```bash
-python fetch_data.py
+bokeh serve --allow-websocket-origin=* server/se_worldmap.py
 ```
 
-Launch the map :
+## Ressources
 
-```bash
-bokeh serve --show coronamap.py coronaboad.py
-```
-
-You can also ignore `--show` option if you run it to a server.
+This project has been done as a practical tool for my bokeh training. I tried to make most of the tools reusable here, and most of them can be found in directory `conmponments/base`.
 
 ## Other websites
 
