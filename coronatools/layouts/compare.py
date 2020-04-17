@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-25 23:11:56
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-04-16 17:48:18
+# @Last Modified time: 2020-04-17 19:20:06
 
 import numpy as np
 
@@ -145,7 +145,9 @@ def construct(pgcd, controller=None) :
     button_reset = Button(label="Reset", button_type="warning", sizing_mode="stretch_width")
 
     lc.update_dt()
-    lc.yname = "Deaths"
+
+    # Default : Asia, Europe and North America
+    dt.source.selected.indices = [2, 3, 4]
 
     return column(
             mlp.figure,
