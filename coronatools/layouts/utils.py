@@ -2,7 +2,7 @@
 # @Author: jsgounot
 # @Date:   2020-03-26 11:45:36
 # @Last modified by:   jsgounot
-# @Last Modified time: 2020-04-03 12:08:32
+# @Last Modified time: 2020-05-03 18:15:19
 
 from bokeh.models import DateFormatter, NumberFormatter
 
@@ -14,7 +14,7 @@ ACOLS = {
     "AC10K" : "0.000", "CO10K" : '0.000', "DE10K" : '0.000', "RE10K" : '0.000'
     }
 
-DESCRIPTIONS = {"LRate" : "Letality rate", "CODay" : "Daily confirmed", "DEDay" : "Daily deaths",
+DESCRIPTIONS = {"LRate" : "Lethality rate", "CODay" : "Daily confirmed", "DEDay" : "Daily deaths",
         "REDay" : "Daily recovered", "PopSize" : "Population size", "PrcCont" : "Contaminated population (%)",
         "AC10K" : "Active per 10K", "CO10K" : "Confirmed per 10K", "DE10K" : "Deaths per 10K", "RE10K" : "Recovered per 10K"
         }
